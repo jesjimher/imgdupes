@@ -4,8 +4,8 @@ imgdupes
 imgdupes is a command-line tool that finds duplicated images in a directory tree. The difference with other similar utilities (like fdupes) is that imgdupes is specifically tailored to JPEG files, and compares only the image data, specifically ignoring any metadata present in the file (EXIF info, tags, titles, orientation tag...). This makes possible to find duplicated images when one of the file's metadata has been modified by imaging software, and byte-by-byte comparators fail to report them as equal. This might happen in a number of situations, for example:
 
 - Modifying EXIF info to adjust date taken (typically when the camera has been set at a wrong date/time)
-- Adjust rotation flag
-- Add tags, or set a title, description, rating...
+- Adjusting rotation flag
+- Adding tags, or setting title, description, rating...
  
 In fact, most image manipulation suites, like Shotwell, fail to recognize that two images with different metadata might be actually the same. This casues that when user imports new photos from camera or SD card, the suite mistakenly re-import images that were already in the collection, but that had been tagged, rotated or whatever. This kind of duplicates are annoying and hard to find, and usually require human checking. imgdupes allows to automate the task of looking for image duplicates that would remain undetected by most duplicate file finder utilities.
 
