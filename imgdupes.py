@@ -142,14 +142,15 @@ if 'ERR' in dupes: del dupes['ERR']
 nset=1
 for h in dupes:
     if args.size:
-        sys.stderr.write( "\n%d bytes each:\n" % dupes[h][0]['size'])
+        print "\n%d bytes each:" % dupes[h][0]['size']
     else:
-        sys.stderr.write("\n")
+        print
     if args.delete:
         # Prompt for which duplicated file to keep, delete the others
         #TODO: compare option to open in file manager (copy to temp, xdg-open it)
         for i in range(len(dupes[h])):
-            sys.stderr.write( "[%d] %s\n" % (i+1,dupes[h][i]['name']))
+            aux=dupes[h][i]
+            sys.stderr.write( "[%d] %s\n" % (i+1,os.path.join(aux['dir'],aux['name'])))
         answer=raw_input("Set %d of %d, preserve files [%d - %d, all] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
         nset+=1
         if answer not in ["all","a",""]:
