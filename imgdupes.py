@@ -151,9 +151,17 @@ for h in dupes:
         for i in range(len(dupes[h])):
             aux=dupes[h][i]
             sys.stderr.write( "[%d] %s\n" % (i+1,os.path.join(aux['dir'],aux['name'])))
-        answer=raw_input("Set %d of %d, preserve files [%d - %d, all] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
+        answer=raw_input("Set %d of %d, preserve files [%d - %d, all, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
         nset+=1
-        if answer not in ["all","a",""]:
+        # If asked, write changes and quit
+        if answer in ["quit","q"]:
+            if modif: writecache(d)
+            exit(0)
+        elif answer in ["all","a",""]:
+            # Don't delete anything
+            sys.stderr.write("Skipping deletion, all duplicates remain\n")
+        else:
+            # If it's no option, assume it's a number and delete all movies except the chosen one
             answer=int(answer)-1 
             for i in range(len(dupes[h])):
                 if i!=answer:
