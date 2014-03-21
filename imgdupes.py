@@ -84,9 +84,12 @@ fsigs='.signatures'
 if os.path.isfile(fsigs):
     cache=open(fsigs,'rb')
     try:
+        sys.stderr.write("Signatures cache detected, loading...\n")
         d=pickle.load(cache)
         cache.close()
-        sys.stderr.write("Existing signatures detected, loading...\n")
+	# Clean up non-existing entries
+        sys.stderr.write("Cleaning up deleted files from cache...\n")
+	d=dict(filter(lambda x:os.path.exists(x[0]),d.iteritems()))
     except (pickle.UnpicklingError,KeyError,EOFError,ImportError,IndexError):
         # Si el fichero no es válido, ignorarlo y marcar que hay que escribir cambios
         d={}
