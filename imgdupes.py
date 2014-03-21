@@ -100,7 +100,7 @@ for dirName, subdirList, fileList in os.walk(rootDir):
     sys.stderr.write('Exploring %s\n' % dirName)
     for fname in fileList:
         # Update signatures cache every 100 files
-        if (count % 100)==0:
+        if modif and ((count % 100)==0):
             writecache(d)
         if fname.lower().endswith(extensiones):
             ruta=os.path.join(dirName,fname)
