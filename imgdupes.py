@@ -48,7 +48,6 @@ def writecache(d):
 parser=argparse.ArgumentParser(description="Checks for duplicated images in a directory tree. Compares just image data, metadata is ignored, so physically different files may be reported as duplicates if they have different metadata (tags, titles, JPEG rotation, EXIF info...).")
 parser.add_argument('directory',help="Base directory to check")
 parser.add_argument('-1','--sameline',help="List each set of matches in a single line",action='store_true',required=False)
-parser.add_argument('-S','--size',help="Show size of duplicate files",action='store_true',required=False)
 parser.add_argument('-d','--delete',help="Prompt user for files to preserve, deleting all others",action='store_true',required=False)
 parser.add_argument('-c','--clean',help="Don't write to disk signatures cache",action='store_true',required=False)
 parser.add_argument('-m','--method',help="Hash method to use. Default is MD5, but CRC might be faster on slower CPUs where process is not I/O bound. ImageMagick's utility identify can also be used if available",default="MD5",choices=["MD5","CRC","identify"],required=False)
@@ -141,10 +140,7 @@ if 'ERR' in dupes: del dupes['ERR']
 #TODO:Read tags, software used, title
 nset=1
 for h in dupes:
-    if args.size:
-        print "\n%d bytes each:" % dupes[h][0]['size']
-    else:
-        print
+    print
     if args.delete:
         # Prompt for which duplicated file to keep, delete the others
         #TODO: compare option to open in file manager (copy to temp, xdg-open it)
