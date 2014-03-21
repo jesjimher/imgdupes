@@ -11,7 +11,7 @@ In fact, most image manipulation suites, like Shotwell, fail to recognize that t
 
 imgdupes invocation is intentionally similar to that of the UNIX command fdupes. This is just for clarity and ease of use, but imgdupes is not meant as a direct replacement of fdupes, which is much more mature and well tested. The recommended usage is using fdupes first, to find and delete byte-by-byte duplicates, and only then using imgdupes to look for duplicates that fdupes might have missed. Even if the interface is inspired by fdupes, not all fdupes parameters are implemented, though, and there're even some differences in global behaviour (i. e. recursive exploring, which is optional in fdupes but mandatory in imgdupes), so be sure to execute imgdupes --help to check the details. A simple invocation of imgdupes would be:
 
-cd <path_to_your_image_collection>
+cd path_to_your_image_collection
 imgdupes .
 
 It would start to recursively analyze the directory tree, and at the end would show you the duplicates it might have found. If you use --delete parameter, it would instead ask you, for each set of duplicates, which one should be preserved, and delete the rest.
