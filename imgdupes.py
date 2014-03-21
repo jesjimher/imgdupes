@@ -8,6 +8,8 @@ import argparse
 from PIL import Image
 import zlib
 import hashlib
+import tempfile
+import shutil
 
 VERSION="1.0"
 
@@ -43,6 +45,10 @@ def writecache(d):
         pickle.dump(d,cache)
         cache.close()
 
+# Deletes any temporary files
+def rmtemps(dirlist):
+    for d in dirlist:
+        shutil.rmtree(d)
 
 # The first, and only argument needs to be a directory
 parser=argparse.ArgumentParser(description="Checks for duplicated images in a directory tree. Compares just image data, metadata is ignored, so physically different files may be reported as duplicates if they have different metadata (tags, titles, JPEG rotation, EXIF info...).")
@@ -142,32 +148,47 @@ if 'ERR' in dupes: del dupes['ERR']
 
 #TODO:Read tags, software used, title
 nset=1
+tmpdirs=[]
 for h in dupes:
     print
     if args.delete:
-        # Prompt for which duplicated file to keep, delete the others
-        #TODO: compare option to open in file manager (copy to temp, xdg-open it)
-        for i in range(len(dupes[h])):
-            aux=dupes[h][i]
-            sys.stderr.write( "[%d] %s\n" % (i+1,os.path.join(aux['dir'],aux['name'])))
-        answer=raw_input("Set %d of %d, preserve files [%d - %d, all, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
-        nset+=1
-        # If asked, write changes and quit
-        if answer in ["quit","q"]:
-            if modif: writecache(d)
-            exit(0)
-        elif answer in ["all","a",""]:
-            # Don't delete anything
-            sys.stderr.write("Skipping deletion, all duplicates remain\n")
-        else:
-            # If it's no option, assume it's a number and delete all movies except the chosen one
-            answer=int(answer)-1 
+        optselected=False
+        while not optselected:
+            # Prompt for which duplicated file to keep, delete the others
+            #TODO: compare option to open in file manager (copy to temp, xdg-open it)
             for i in range(len(dupes[h])):
-                if i!=answer:
+                aux=dupes[h][i]
+                sys.stderr.write( "[%d] %s\n" % (i+1,os.path.join(aux['dir'],aux['name'])))
+            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
+            if answer in ["quit","q"]:
+                # If asked, write changes, delete temps and quit
+                if modif: writecache(d)
+                rmtemps(tmpdirs)
+                exit(0)
+            elif answer in ["show","s"]:
+                # Create a temporary directory, copy duplicated files and open a file manager
+                tmpdir=tempfile.mkdtemp()
+                tmpdirs.append(tmpdir)
+                for i in range(len(dupes[h])):
                     p=os.path.join(dupes[h][i]['dir'],dupes[h][i]['name'])
-                    os.remove(p)
-                    del d[p]
-                    modif=True
+                    ntemp="%d_%s" % (i,dupes[h][i]['name'])
+                    shutil.copyfile(p,os.path.join(tmpdir,ntemp))
+                sub.Popen(["xdg-open",tmpdir],stdout=None,stderr=None)
+            elif answer in ["all","a",""]:
+                # Don't delete anything
+                sys.stderr.write("Skipping deletion, all duplicates remain\n")
+                optselected=True
+            else:
+                # If it's no option, assume it's a number and delete all movies except the chosen one
+                answer=int(answer)-1 
+                for i in range(len(dupes[h])):
+                    if i!=answer:
+                        p=os.path.join(dupes[h][i]['dir'],dupes[h][i]['name'])
+                        os.remove(p)
+                        del d[p]
+                        modif=True
+                optselected=True
+        nset+=1
     else:
         # Just show duplicates
         for f in dupes[h]:
@@ -177,6 +198,9 @@ for h in dupes:
 
 # Final update of the cache in order to remove signatures of deleted files
 if modif: writecache(d)
+
+# Delete temps
+rmtemps(tmpdirs)
 
 # Restore directory
 os.chdir(pwd)
