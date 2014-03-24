@@ -69,7 +69,7 @@ def readmetadata(path):
         date=""
         
     # Orientation
-    ori=exif['Exif.Image.Orientation']
+    ori=exif.get('Exif.Image.Orientation',"?")
     
     # Tags
     tags=[]
@@ -77,8 +77,8 @@ def readmetadata(path):
         tags.append(exif['Iptc.Application2.Keywords'])        
     if 'Xmp.dc.subject' in exif:
         tags+=exif['Xmp.dc.subject'].split(",")
-#    if 'Xmp.digikam.TagsList' in exif:
-#        tags+=exif['Xmp.digikam.TagsList'].split(",")
+    if 'Xmp.digiKam.TagsList' in exif:
+        tags+=exif['Xmp.digiKam.TagsList'].split(",")
     if 'Xmp.MicrosoftPhoto.LastKeywordXMP' in exif:
         tags+=exif['Xmp.MicrosoftPhoto.LastKeywordXMP'].split(",")
     tags=[x.strip() for x in tags]
