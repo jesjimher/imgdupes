@@ -10,6 +10,8 @@ import zlib
 import hashlib
 import tempfile
 import shutil
+from gi.repository import GExiv2
+import time
 
 VERSION="1.0"
 
@@ -49,6 +51,61 @@ def writecache(d):
 def rmtemps(dirlist):
     for d in dirlist:
         shutil.rmtree(d)
+
+# Summarize image metadata in one line
+def readmetadata(path):
+    exif=GExiv2.Metadata(path)
+    
+    # Date
+    date=[]
+    if 'Exif.Photo.DateTimeOriginal' in exif:
+        date.append(exif['Exif.Photo.DateTimeOriginal'])
+    if 'Xmp.exif.DateTimeOriginal' in exif:
+        date.append(exif['Xmp.exif.DateTimeOriginal'])
+    #date.append(time.ctime(os.path.getmtime(path)))
+    if len(date)>0:
+        date=time.strftime("%d/%m/%Y %H:%M:%S",time.strptime(date[0],"%Y:%m:%d %H:%M:%S"))
+    else:
+        date=""
+        
+    # Orientation
+    ori=exif['Exif.Image.Orientation']
+    
+    # Tags
+    tags=[]
+    if 'Iptc.Application2.Keywords' in exif:
+        tags.append(exif['Iptc.Application2.Keywords'])        
+    if 'Xmp.dc.subject' in exif:
+        tags+=exif['Xmp.dc.subject'].split(",")
+#    if 'Xmp.digikam.TagsList' in exif:
+#        tags+=exif['Xmp.digikam.TagsList'].split(",")
+    if 'Xmp.MicrosoftPhoto.LastKeywordXMP' in exif:
+        tags+=exif['Xmp.MicrosoftPhoto.LastKeywordXMP'].split(",")
+    tags=[x.strip() for x in tags]
+    tags=list(set(tags))
+    tags.sort()
+        
+    # Title
+    title=[]
+    if 'Iptc.Application2.Caption' in exif:
+        title.append(exif['Iptc.Application2.Caption'])
+    if 'Xmp.dc.title' in exif:
+        title.append(exif['Xmp.dc.title'])
+    if 'Iptc.Application2.Headline' in exif:
+        title.append(exif['Iptc.Application2.Headline'])
+        
+    # Software
+    soft=""
+    if 'Iptc.Application2.Program' in exif:
+        soft=exif['Iptc.Application2.Program']
+    
+    sout="date: %s, orientation: %s" % (date,ori)
+#    if soft!="":
+#        sout+=", soft: %s" % soft
+    if len(tags)>0:
+        sout+=", tags:[%s]" % ",".join(tags)
+        
+    return sout
 
 # The first, and only argument needs to be a directory
 parser=argparse.ArgumentParser(description="Checks for duplicated images in a directory tree. Compares just image data, metadata is ignored, so physically different files may be reported as duplicates if they have different metadata (tags, titles, JPEG rotation, EXIF info...).")
@@ -158,7 +215,8 @@ for h in dupes:
             #TODO: compare option to open in file manager (copy to temp, xdg-open it)
             for i in range(len(dupes[h])):
                 aux=dupes[h][i]
-                sys.stderr.write( "[%d] %s\n" % (i+1,os.path.join(aux['dir'],aux['name'])))
+                ruta=os.path.join(aux['dir'],aux['name'])
+                sys.stderr.write( "[%d] %-40s %s\n" % (i+1,ruta,readmetadata(ruta)))
             answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
             if answer in ["quit","q"]:
                 # If asked, write changes, delete temps and quit
