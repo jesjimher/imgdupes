@@ -12,6 +12,7 @@ import tempfile
 import shutil
 from gi.repository import GExiv2
 import time
+import texttable as tt
 
 VERSION="1.0"
 
@@ -51,6 +52,50 @@ def writecache(d):
 def rmtemps(dirlist):
     for d in dirlist:
         shutil.rmtree(d)
+
+# Print a tag comparison detail, showing differences between provided files
+def metadatacomparison(files):
+    # Extract tags for each file
+    tags={}
+    for f in files:
+        exif=GExiv2.Metadata(f)
+        tags[f]={(x,exif[x]) for x in exif.get_tags()}
+    # Compute common tags intersecting all sets
+    commontags=tags[files[0]]
+    for f in tags:
+        commontags=commontags.intersection(tags[f])
+    # Delete common tags for each entry
+    for f in tags:
+        tags[f]=tags[f]-commontags
+    # Print results
+    head=["Tag"]+[os.path.basename(x) for x in files]
+    tab=[]
+    alluniquetags=set()
+    for f in tags:
+        alluniquetags|=({x[0] for x in tags[f]})
+    for t in alluniquetags:
+        aux=[t]
+        for f in files:
+            if t in [x[0] for x in tags[f]]:
+                aux.append(dict(tags[f])[t])
+            else:
+                aux.append("-")
+        tab.append(aux)
+    print tab
+    t=tt.Texttable()
+    t.header(head)
+    t.add_rows(tab,header=False)
+    t.set_deco(t.HEADER)
+    t.set_chars(['-','|','+','-'])
+    maxw=len(max(alluniquetags,key=len))
+    arrw=[maxw]+[25]*len(files)
+    t.set_cols_width(arrw)
+    print
+    print t.draw()
+    print "(Unique fields only. Common EXIF tags have been omitted)"
+    print
+        
+        
 
 # Summarize image metadata in one line
 def readmetadata(path):
@@ -218,8 +263,12 @@ for h in dupes:
                 aux=dupes[h][i]
                 ruta=os.path.join(aux['dir'],aux['name'])
                 sys.stderr.write( "[%d] %-40s %s\n" % (i+1,ruta,readmetadata(ruta)))
-            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
-            if answer in ["quit","q"]:
+            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, detail, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
+            if answer in ["detail","d"]:
+                # Show detailed differences in EXIF tags
+                filelist=[os.path.join(x['dir'],x['name']) for x in dupes[h]]
+                metadatacomparison(filelist)                
+            elif answer in ["quit","q"]:
                 # If asked, write changes, delete temps and quit
                 if modif: writecache(d)
                 rmtemps(tmpdirs)
