@@ -55,12 +55,13 @@ def rmtemps(dirlist):
 # Summarize image metadata in one line
 def readmetadata(path):
     exif=GExiv2.Metadata(path)
+    taglist=exif.get_tags()
     
     # Date
     date=[]
-    if 'Exif.Photo.DateTimeOriginal' in exif:
+    if 'Exif.Photo.DateTimeOriginal' in taglist:
         date.append(exif['Exif.Photo.DateTimeOriginal'])
-    if 'Xmp.exif.DateTimeOriginal' in exif:
+    if 'Xmp.exif.DateTimeOriginal' in taglist:
         date.append(exif['Xmp.exif.DateTimeOriginal'])
     #date.append(time.ctime(os.path.getmtime(path)))
     if len(date)>0:
@@ -73,13 +74,13 @@ def readmetadata(path):
     
     # Tags
     tags=[]
-    if 'Iptc.Application2.Keywords' in exif:
+    if 'Iptc.Application2.Keywords' in taglist:
         tags.append(exif['Iptc.Application2.Keywords'])        
-    if 'Xmp.dc.subject' in exif:
+    if 'Xmp.dc.subject' in taglist:
         tags+=exif['Xmp.dc.subject'].split(",")
-    if 'Xmp.digiKam.TagsList' in exif:
+    if 'Xmp.digiKam.TagsList' in taglist:
         tags+=exif['Xmp.digiKam.TagsList'].split(",")
-    if 'Xmp.MicrosoftPhoto.LastKeywordXMP' in exif:
+    if 'Xmp.MicrosoftPhoto.LastKeywordXMP' in taglist:
         tags+=exif['Xmp.MicrosoftPhoto.LastKeywordXMP'].split(",")
     tags=[x.strip() for x in tags]
     tags=list(set(tags))
@@ -87,16 +88,16 @@ def readmetadata(path):
         
     # Title
     title=[]
-    if 'Iptc.Application2.Caption' in exif:
+    if 'Iptc.Application2.Caption' in taglist:
         title.append(exif['Iptc.Application2.Caption'])
-    if 'Xmp.dc.title' in exif:
+    if 'Xmp.dc.title' in taglist:
         title.append(exif['Xmp.dc.title'])
-    if 'Iptc.Application2.Headline' in exif:
+    if 'Iptc.Application2.Headline' in taglist:
         title.append(exif['Iptc.Application2.Headline'])
         
     # Software
     soft=""
-    if 'Iptc.Application2.Program' in exif:
+    if 'Iptc.Application2.Program' in taglist:
         soft=exif['Iptc.Application2.Program']
     
     sout="date: %s, orientation: %s" % (date,ori)
