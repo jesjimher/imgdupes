@@ -54,7 +54,7 @@ def rmtemps(dirlist):
         shutil.rmtree(d)
 
 # Print a tag comparison detail, showing differences between provided files
-def metadatacomparison(files):
+def metadata_comp_table(files):
     # Extract tags for each file
     tags={}
     for f in files:
@@ -96,8 +96,8 @@ def metadatacomparison(files):
         
         
 
-# Summarize image metadata in one line
-def readmetadata(path):
+# Summarize most relevant image metadata in one line
+def metadata_summary(path):
     exif=GExiv2.Metadata(path)
     taglist=exif.get_tags()
     
@@ -131,24 +131,42 @@ def readmetadata(path):
     tags.sort()
         
     # Title
-    title=[]
+    aux=[]
+    title=""
     if 'Iptc.Application2.Caption' in taglist:
-        title.append(exif['Iptc.Application2.Caption'])
+        aux.append(exif['Iptc.Application2.Caption'])
     if 'Xmp.dc.title' in taglist:
-        title.append(exif['Xmp.dc.title'])
+        aux.append(exif['Xmp.dc.title'])
     if 'Iptc.Application2.Headline' in taglist:
-        title.append(exif['Iptc.Application2.Headline'])
-        
+        aux.append(exif['Iptc.Application2.Headline'])
+    if len(aux)>0:
+        title=aux[0]
+                    
     # Software
+    aux=[]
     soft=""
+    if 'Exif.Image.Software' in taglist:
+        aux.append(exif['Exif.Image.Software'])
     if 'Iptc.Application2.Program' in taglist:
-        soft=exif['Iptc.Application2.Program']
+        aux.append(exif['Iptc.Application2.Program'])
+    if len(aux)>0:
+        soft=list(set(aux))[0]
     
-    sout="date: %s, orientation: %s" % (date,ori)
+    # Shorten title and soft
+    if len(title)>13:
+        title=title[:10]+"..."
+    if len(soft)>15:
+        soft=soft[:12]+"..."
+        
+    cadtitle="  title: %-13s" % title if len(title)>0 else 21*" "
+    cadsoft="  soft: %-15s" % soft if len(soft)>0 else 35*" "
+    sout="date: %s  orientation: %s" % (date,ori)
+    sout+=cadtitle+cadsoft
+          
 #    if soft!="":
 #        sout+=", soft: %s" % soft
     if len(tags)>0:
-        sout+=", tags:[%s]" % ",".join(tags)
+        sout+="  tags:[%s]" % ",".join(tags)
         
     return sout
 
@@ -261,12 +279,12 @@ for h in dupes:
             for i in range(len(dupes[h])):
                 aux=dupes[h][i]
                 ruta=os.path.join(aux['dir'],aux['name'])
-                sys.stderr.write( "[%d] %-40s %s\n" % (i+1,ruta,readmetadata(ruta)))
+                sys.stderr.write( "[%d] %-40s %s\n" % (i+1,ruta,metadata_summary(ruta)))
             answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, detail, help, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
             if answer in ["detail","d"]:
                 # Show detailed differences in EXIF tags
                 filelist=[os.path.join(x['dir'],x['name']) for x in dupes[h]]
-                metadatacomparison(filelist)
+                metadata_comp_table(filelist)
             elif answer in ["help","h"]:
                 print
                 print "[0-9]:  Keep the selected file, delete the rest"                
