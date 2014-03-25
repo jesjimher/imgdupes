@@ -263,11 +263,20 @@ for h in dupes:
                 aux=dupes[h][i]
                 ruta=os.path.join(aux['dir'],aux['name'])
                 sys.stderr.write( "[%d] %-40s %s\n" % (i+1,ruta,readmetadata(ruta)))
-            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, detail, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
+            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, detail, help, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
             if answer in ["detail","d"]:
                 # Show detailed differences in EXIF tags
                 filelist=[os.path.join(x['dir'],x['name']) for x in dupes[h]]
-                metadatacomparison(filelist)                
+                metadatacomparison(filelist)
+            elif answer in ["help","h"]:
+                print
+                print "[0-9]:  Keep the selected file, delete the rest"                
+                print "all:    Keep all files, don't delete anything"                
+                print "show:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)"                
+                print "detail: Show a detailed table with metadata differences between files"                
+                print "help:   Show this screen"                
+                print "quit:   Exit program"
+                print
             elif answer in ["quit","q"]:
                 # If asked, write changes, delete temps and quit
                 if modif: writecache(d)
