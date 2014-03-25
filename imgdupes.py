@@ -77,7 +77,7 @@ def metadatacomparison(files):
         aux=[t]
         for f in files:
             if t in [x[0] for x in tags[f]]:
-                aux.append(dict(tags[f])[t])
+                aux.append(dict(tags[f])[t][:200])
             else:
                 aux.append("-")
         tab.append(aux)
