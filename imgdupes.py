@@ -81,7 +81,6 @@ def metadatacomparison(files):
             else:
                 aux.append("-")
         tab.append(aux)
-    print tab
     t=tt.Texttable()
     t.header(head)
     t.add_rows(tab,header=False)
