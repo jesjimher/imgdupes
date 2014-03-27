@@ -86,7 +86,7 @@ def metadata_comp_table(files):
     t.add_rows(tab,header=False)
     t.set_deco(t.HEADER)
     t.set_chars(['-','|','+','-'])
-    maxw=len(max(alluniquetags,key=len)) if alluniquetags else 1
+    maxw=len(max(alluniquetags,key=len)) if alluniquetags else 5
     arrw=[maxw]+[25]*len(files)
     t.set_cols_width(arrw)
     print
