@@ -91,7 +91,7 @@ def metadata_comp_table(files):
     t.set_cols_width(arrw)
     print
     print t.draw()
-    print "(Unique fields only. Common EXIF tags have been omitted)"
+    print "\n(Unique fields only. Common EXIF tags have been omitted)"
     print
         
         
