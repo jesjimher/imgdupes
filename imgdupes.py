@@ -223,7 +223,7 @@ if os.path.isfile(fsigs):
         cache.close()
 
 
-count=0
+count=1
 for dirName, subdirList, fileList in os.walk(rootDir):
     sys.stderr.write('Exploring %s\n' % dirName)
     for fname in fileList:
@@ -242,6 +242,7 @@ for dirName, subdirList, fileList in os.walk(rootDir):
                         'size':os.path.getsize(ruta)
                         }
                 modif=True
+                count+=1
 
 # Write hash cache to disk
 if modif: writecache(d)
