@@ -230,6 +230,7 @@ for dirName, subdirList, fileList in os.walk(rootDir):
         # Update signatures cache every 100 files
         if modif and ((count % 100)==0):
             writecache(d)
+            modif=False
         if fname.lower().endswith(extensiones):
             ruta=os.path.join(dirName,fname)
             # Si el fichero no está en la caché, o está pero con tamaño diferente, añadirlo
