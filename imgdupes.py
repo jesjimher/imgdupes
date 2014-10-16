@@ -13,32 +13,43 @@ import shutil
 from gi.repository import GExiv2
 import time
 import texttable as tt
+from jpegtran import JPEGImage
+from StringIO import StringIO
 
-VERSION="1.0"
+VERSION="1.1"
 
 # Calculates image hash for a single file. Just image data, ignore headers
+# Depending on flags, return just one hash or a list of all possible rotation flags
 def hashcalc(path,method="MD5"):
+    h=[]
     if method=="identify":
         # Execute ImageMagick identify to get image signature
         p=sub.Popen(["identify",'-format','%#',path],stdout=sub.PIPE,stderr=sub.PIPE)
         output,errors=p.communicate()
-        h=output[:-1]
+        h.append(output[:-1])
     else:
         # All other methods involve opening the file using PIL
+        rots=[0]
+        if args.rotations:
+            rots=[0,90,180,270]
         try:
-            im=Image.open(path)
-            dat=im.tostring()
-        except:
+            img=JPEGImage(path)
+        except IOError:
             sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
-            return "ERR"
-        # CRC should be faster than MD5 (al least in theory, actually it's about the same since the process is I/O bound)
-        if method=="CRC":
-            h=zlib.crc32(dat)
-        else:
-            # If unknown, use MD5
-            md5=hashlib.new("MD5")
-            md5.update(dat)
-            h=md5.digest()
+            return ["ERR"]
+        for rot in rots:
+            # Rotate the image if necessary before calculating hash
+            data=img.as_blob()
+            if rot>0:
+                data=img.rotate(rot).as_blob()
+            im=Image.open(StringIO(data))
+            datstr=im.tostring()
+            # CRC should be faster than MD5 (al least in theory, actually it's about the same since the process is I/O bound)
+            if method=="CRC":
+                h.append(zlib.crc32(datstr))
+            else:
+                # If unknown, use MD5
+                h.append(hashlib.md5(datstr).digest())
     return h
 
 # Writes the specified dict to disk
@@ -176,6 +187,7 @@ parser.add_argument('directory',help="Base directory to check")
 parser.add_argument('-1','--sameline',help="List each set of matches in a single line",action='store_true',required=False)
 parser.add_argument('-d','--delete',help="Prompt user for files to preserve, deleting all others",action='store_true',required=False)
 parser.add_argument('-c','--clean',help="Don't write to disk signatures cache",action='store_true',required=False)
+parser.add_argument('-r','--rotations',help="Calculate hashes of all possible rotations (detects images losslessly rotated)",action='store_true',required=False)
 parser.add_argument('-m','--method',help="Hash method to use. Default is MD5, but CRC might be faster on slower CPUs where process is not I/O bound. ImageMagick's utility identify can also be used if available",default="MD5",choices=["MD5","CRC","identify"],required=False)
 parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 args=parser.parse_args()
@@ -190,6 +202,8 @@ except:
 
 # Check if identify command is available
 if args.method=="identify":
+    if args.rotations:
+        sys.stderr.write("Warning, --method=identify is not compatible with multiple rotations. Argument --rotations will be ignored")
     try:
         sub.Popen("identify",stdout=sub.PIPE,stderr=sub.PIPE)
     except OSError:
@@ -200,7 +214,7 @@ if args.method=="identify":
 extensiones=('jpg','jpeg')
 
 # Diccionario con información sobre los ficheros
-d={}
+jpegs={}
 # Flag para saber si hay que volver a escribir la caché por cambios
 modif=False
 
@@ -211,14 +225,14 @@ if os.path.isfile(fsigs):
     cache=open(fsigs,'rb')
     try:
         sys.stderr.write("Signatures cache detected, loading...\n")
-        d=pickle.load(cache)
+        jpegs=pickle.load(cache)
         cache.close()
 	# Clean up non-existing entries
         sys.stderr.write("Cleaning up deleted files from cache...\n")
-	d=dict(filter(lambda x:os.path.exists(x[0]),d.iteritems()))
+	jpegs=dict(filter(lambda x:os.path.exists(x[0]),jpegs.iteritems()))
     except (pickle.UnpicklingError,KeyError,EOFError,ImportError,IndexError):
         # Si el fichero no es válido, ignorarlo y marcar que hay que escribir cambios
-        d={}
+        jpegs={}
         modif=True
         cache.close()
 
@@ -234,9 +248,9 @@ for dirName, subdirList, fileList in os.walk(rootDir):
         if fname.lower().endswith(extensiones):
             ruta=os.path.join(dirName,fname)
             # Si el fichero no está en la caché, o está pero con tamaño diferente, añadirlo
-            if (ruta not in d) or ((ruta in d) and (d[ruta]['size']!=os.path.getsize(ruta))):
+            if (ruta not in jpegs) or ((ruta in jpegs) and (jpegs[ruta]['size']!=os.path.getsize(ruta))):
                 sys.stderr.write("   Calculating hash of %s...\n" % ruta)
-                d[ruta]={
+                jpegs[ruta]={
                         'name':fname,
                         'dir':dirName,
                         'hash':hashcalc(ruta,args.method),
@@ -246,46 +260,52 @@ for dirName, subdirList, fileList in os.walk(rootDir):
                 count+=1
 
 # Write hash cache to disk
-if modif: writecache(d)
+if modif: writecache(jpegs)
 
 # Check for duplicates
 
 # Create a new dict indexed by hash
-# Initialize dict with an empty list for every hash
+# Initialize dict with an empty list for every possible hash
 hashes={}
-for f in d:
-    hashes[d[f]['hash']]=[]
+for f in jpegs:
+    for h in jpegs[f]['hash']:
+        hashes[h]=[]
 # Group files with the same hash together
-for f in d:
-    hashes[d[f]['hash']].append(d[f])
+for f in jpegs:
+    for h in jpegs[f]['hash']:
+        hashes[h].append(jpegs[f])
 # Discard hashes without duplicates
 dupes={}
 for h in hashes:
     if len(hashes[h])>1:
         dupes[h]=hashes[h]
-# Cleanup. Not strictly necessary, but if there're a lot of files these can get quite big
-del hashes
 # Delete entries whose hash couldn't be generated, so they're not reported as duplicates
 if 'ERR' in dupes: del dupes['ERR']
+# Discard duplicated sets (probably a lot if --rotations is activated)
+nodupes=[]
+for elem in dupes.values():
+    if not elem in nodupes:
+        nodupes.append(elem)
+# Cleanup. Not strictly necessary, but if there're a lot of files these can get quite big
+del hashes,dupes
 
 #TODO:Read tags, software used, title
 nset=1
 tmpdirs=[]
-for h in dupes:
+for dupset in nodupes:
     print
     if args.delete:
         optselected=False
         while not optselected:
             # Prompt for which duplicated file to keep, delete the others
-            #TODO: compare option to open in file manager (copy to temp, xdg-open it)
-            for i in range(len(dupes[h])):
-                aux=dupes[h][i]
+            for i in range(len(dupset)):
+                aux=dupset[i]
                 ruta=os.path.join(aux['dir'],aux['name'])
                 sys.stderr.write( "[%d] %-40s %s\n" % (i+1,ruta,metadata_summary(ruta)))
-            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, detail, help, quit] (default: all): " % (nset,len(dupes),1,len(dupes[h])))
+            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, detail, help, quit] (default: all): " % (nset,len(nodupes),1,len(dupset)))
             if answer in ["detail","d"]:
                 # Show detailed differences in EXIF tags
-                filelist=[os.path.join(x['dir'],x['name']) for x in dupes[h]]
+                filelist=[os.path.join(x['dir'],x['name']) for x in dupset]
                 metadata_comp_table(filelist)
             elif answer in ["help","h"]:
                 print
@@ -298,16 +318,16 @@ for h in dupes:
                 print
             elif answer in ["quit","q"]:
                 # If asked, write changes, delete temps and quit
-                if modif: writecache(d)
+                if modif: writecache(jpegs)
                 rmtemps(tmpdirs)
                 exit(0)
             elif answer in ["show","s"]:
                 # Create a temporary directory, copy duplicated files and open a file manager
                 tmpdir=tempfile.mkdtemp()
                 tmpdirs.append(tmpdir)
-                for i in range(len(dupes[h])):
-                    p=os.path.join(dupes[h][i]['dir'],dupes[h][i]['name'])
-                    ntemp="%d_%s" % (i,dupes[h][i]['name'])
+                for i in range(len(dupset)):
+                    p=os.path.join(dupset[i]['dir'],dupset[i]['name'])
+                    ntemp="%d_%s" % (i,dupset[i]['name'])
                     shutil.copyfile(p,os.path.join(tmpdir,ntemp))
                 sub.Popen(["xdg-open",tmpdir],stdout=None,stderr=None)
             elif answer in ["all","a",""]:
@@ -315,25 +335,25 @@ for h in dupes:
                 sys.stderr.write("Skipping deletion, all duplicates remain\n")
                 optselected=True
             else:
-                # If it's no option, assume it's a number and delete all movies except the chosen one
+                # If it's no option, assume it's a number and delete all pictures except the chosen one
                 answer=int(answer)-1 
-                for i in range(len(dupes[h])):
+                for i in range(len(dupset)):
                     if i!=answer:
-                        p=os.path.join(dupes[h][i]['dir'],dupes[h][i]['name'])
+                        p=os.path.join(dupset[i]['dir'],dupset[i]['name'])
                         os.remove(p)
-                        del d[p]
+                        del jpegs[p]
                         modif=True
                 optselected=True
         nset+=1
     else:
         # Just show duplicates
-        for f in dupes[h]:
+        for f in dupset:
             print os.path.join(f['dir'],f['name']),
             if not args.sameline:
                 print "\n",
 
 # Final update of the cache in order to remove signatures of deleted files
-if modif: writecache(d)
+if modif: writecache(jpegs)
 
 # Delete temps
 rmtemps(tmpdirs)
