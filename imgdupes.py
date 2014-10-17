@@ -244,7 +244,7 @@ for dirName, subdirList, fileList in os.walk(rootDir):
     for fname in fileList:
         # Update signatures cache every 100 files
         if modif and ((count % 100)==0):
-            writecache(d)
+            writecache(jpegs)
             modif=False
         if fname.lower().endswith(extensiones):
             ruta=os.path.join(dirName,fname)
