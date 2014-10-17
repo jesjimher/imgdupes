@@ -39,8 +39,9 @@ def hashcalc(path,method="MD5"):
             return ["ERR"]
         for rot in rots:
             # Rotate the image if necessary before calculating hash
-            data=img.as_blob()
-            if rot>0:
+            if rot==0:
+                data=img.as_blob()
+            else:
                 data=img.rotate(rot).as_blob()
             im=Image.open(StringIO(data))
             datstr=im.tostring()
