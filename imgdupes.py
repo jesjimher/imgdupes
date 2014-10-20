@@ -34,23 +34,23 @@ def hashcalc(path,method="MD5"):
             rots=[0,90,180,270]
         try:
             img=JPEGImage(path)
+            for rot in rots:
+                # Rotate the image if necessary before calculating hash
+                if rot==0:
+                    data=img.as_blob()
+                else:
+                    data=img.rotate(rot).as_blob()
+                im=Image.open(StringIO(data))
+                datstr=im.tostring()
+                # CRC should be faster than MD5 (al least in theory, actually it's about the same since the process is I/O bound)
+                if method=="CRC":
+                    h.append(zlib.crc32(datstr))
+                else:
+                    # If unknown, use MD5
+                    h.append(hashlib.md5(datstr).digest())
         except IOError:
             sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
             return ["ERR"]
-        for rot in rots:
-            # Rotate the image if necessary before calculating hash
-            if rot==0:
-                data=img.as_blob()
-            else:
-                data=img.rotate(rot).as_blob()
-            im=Image.open(StringIO(data))
-            datstr=im.tostring()
-            # CRC should be faster than MD5 (al least in theory, actually it's about the same since the process is I/O bound)
-            if method=="CRC":
-                h.append(zlib.crc32(datstr))
-            else:
-                # If unknown, use MD5
-                h.append(hashlib.md5(datstr).digest())
     return h
 
 # Writes the specified dict to disk
