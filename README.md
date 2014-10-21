@@ -33,7 +33,7 @@ sudo apt-get install python-cffi python-dev libjpeg-dev gir1.2-gexiv2-0.10
 sudo pip install texttable
 sudo pip install jpegtran-cffi
 ```
-**Warning**: Version 0.5 of jpegtran-cffi has a memory leak that makes imgdupes use more and more memory as it processes images. With a few images it's probably negligible, but when using imgdupes with hundreds or thousands of files, it may exhaust all available memory and crash after a while. Fortunately, the bug is already fixed in the repository (kudos for the developers, it was fixed hours after being reported) so, until a new stable version of jpegtran-cffi is released, it's preferable to install it from git than using pip. It's as easy as executing the following commands:
+**Warning**: Version 0.5 of jpegtran-cffi has a memory leak that makes imgdupes use more and more memory as it processes images. With a few images it's probably negligible, but when using imgdupes with hundreds or thousands of files, it may exhaust all available memory and crash after a while. Fortunately, the bug is already fixed in version 0.5.1 (kudos for the developers, it was fixed hours after being reported), so make sure you're using the latest version. If you're unable to use pip and/or your distribution comes with an older version, you can install the latest version from git executing the following commands:
 ```
 sudo pip uninstall jpegtran-cffi
 git clone https://github.com/jbaiter/jpegtran-cffi.git
