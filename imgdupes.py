@@ -15,43 +15,54 @@ import time
 import texttable as tt
 from jpegtran import JPEGImage
 from StringIO import StringIO
+from multiprocessing import Pool
 
-VERSION="1.1"
+VERSION="1.2"
 
-# Calculates image hash for a single file. Just image data, ignore headers
-# Depending on flags, return just one hash or a list of all possible rotation flags
-def hashcalc(path,method="MD5"):
-    h=[]
-    if method=="identify":
-        # Execute ImageMagick identify to get image signature
-        p=sub.Popen(["identify",'-format','%#',path],stdout=sub.PIPE,stderr=sub.PIPE)
-        output,errors=p.communicate()
-        h.append(output[:-1])
+# Calculates hash of the specified object x. x is a tuple with the format (JPEGImage object,rotation,hash_method)
+# This is the function that will be executed in the process pool
+def phash(x):
+    img=x[0]
+    rot=x[1]
+    method=x[2]
+    
+    # Rotate the image if necessary before calculating hash
+    if rot==0:
+        data=img.as_blob()
     else:
-        # All other methods involve opening the file using PIL
-        rots=[0]
-        if args.rotations:
-            rots=[0,90,180,270]
-        try:
-            img=JPEGImage(path)
-            for rot in rots:
-                # Rotate the image if necessary before calculating hash
-                if rot==0:
-                    data=img.as_blob()
-                else:
-                    data=img.rotate(rot).as_blob()
-                im=Image.open(StringIO(data))
-                datstr=im.tostring()
-                # CRC should be faster than MD5 (al least in theory, actually it's about the same since the process is I/O bound)
-                if method=="CRC":
-                    h.append(zlib.crc32(datstr))
-                else:
-                    # If unknown, use MD5
-                    h.append(hashlib.md5(datstr).digest())
-        except IOError:
-            sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
-            return ["ERR"]
+        data=img.rotate(rot).as_blob()
+    try:
+        im=Image.open(StringIO(data))
+    except IOError:
+        sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
+        return ["ERR"]
+
+    datstr=im.tostring()
+    # CRC should be faster than MD5 (al least in theory, actually it's about the same since the process is I/O bound)
+    if method=="CRC":
+        h=zlib.crc32(datstr)
+    else:
+        # If unknown, use MD5
+        h=hashlib.md5(datstr).digest()
+
     return h
+
+# Calculates all possible hashes for a single file (normal, and all possible rotations)
+# Just image data, ignore headers
+# Uses a process pool to benefit from multiple cores
+def hashcalc(path,pool,method="MD5"):
+    rots=[0,90,180,270]
+    try:
+        img=JPEGImage(path)
+        lista=[]
+        for rot in rots:
+            lista.append((img,rot,method))
+    except IOError:
+        sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
+        return ["ERR"]
+    results=pool.map(phash,lista)
+
+    return results
 
 # Writes the specified dict to disk
 def writecache(d):
@@ -188,8 +199,7 @@ parser.add_argument('directory',help="Base directory to check")
 parser.add_argument('-1','--sameline',help="List each set of matches in a single line",action='store_true',required=False)
 parser.add_argument('-d','--delete',help="Prompt user for files to preserve, deleting all others",action='store_true',required=False)
 parser.add_argument('-c','--clean',help="Don't write to disk signatures cache",action='store_true',required=False)
-parser.add_argument('-r','--rotations',help="Calculate hashes of all possible rotations (detects images losslessly rotated)",action='store_true',required=False)
-parser.add_argument('-m','--method',help="Hash method to use. Default is MD5, but CRC might be faster on slower CPUs where process is not I/O bound. ImageMagick's utility identify can also be used if available",default="MD5",choices=["MD5","CRC","identify"],required=False)
+parser.add_argument('-m','--method',help="Hash method to use. Default is MD5, but CRC might be faster on slower CPUs where process is not I/O bound",default="MD5",choices=["MD5","CRC"],required=False)
 parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 args=parser.parse_args()
 
@@ -200,16 +210,6 @@ try:
 except:
     sys.stderr.write( "Directory %s doesn't exist\n" % args.directory)
     exit(1)
-
-# Check if identify command is available
-if args.method=="identify":
-    if args.rotations:
-        sys.stderr.write("Warning, --method=identify is not compatible with multiple rotations. Argument --rotations will be ignored")
-    try:
-        sub.Popen("identify",stdout=sub.PIPE,stderr=sub.PIPE)
-    except OSError:
-        sys.stderr.write("identify command not found in path. Please install ImageMagick suite or use a different hashing method\n")
-        exit(1)
 
 # Extensiones admitidas (case insensitive)
 extensiones=('jpg','jpeg')
@@ -237,6 +237,8 @@ if os.path.isfile(fsigs):
         modif=True
         cache.close()
 
+# Create process pool for parallel hash calculation
+pool=Pool()
 
 count=1
 for dirName, subdirList, fileList in os.walk(rootDir):
@@ -254,7 +256,7 @@ for dirName, subdirList, fileList in os.walk(rootDir):
                 jpegs[ruta]={
                         'name':fname,
                         'dir':dirName,
-                        'hash':hashcalc(ruta,args.method),
+                        'hash':hashcalc(ruta,pool,args.method),
                         'size':os.path.getsize(ruta)
                         }
                 modif=True
