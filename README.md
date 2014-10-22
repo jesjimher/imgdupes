@@ -42,6 +42,12 @@ sudo python setup.py install
 ```
 ##History
 
+v1.2
+
+ Added multi-cpu support
+ Remove -r parameter. Calculation of all possible rotations is now mandatory
+ Removed identify command as a hash method. It complicated things, and MD5 and CRC are faster and available everywhere.
+ 
 v1.1
 
   Support for losslessly rotated image detection
