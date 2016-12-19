@@ -37,7 +37,7 @@ def phash(x):
         sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
         return ["ERR"]
 
-    datstr=im.tostring()
+    datstr=im.tobytes()
     # CRC should be faster than MD5 (al least in theory, actually it's about the same since the process is I/O bound)
     if method=="CRC":
         h=zlib.crc32(datstr)
