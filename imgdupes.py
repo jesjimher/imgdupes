@@ -25,7 +25,7 @@ def phash(x):
     img=x[0]
     rot=x[1]
     method=x[2]
-    
+
     # Rotate the image if necessary before calculating hash
     if rot==0:
         data=img.as_blob()
@@ -117,15 +117,15 @@ def metadata_comp_table(files):
     print t.draw()
     print "\n(Unique fields only. Common EXIF tags have been omitted)"
     print
-        
-        
+
+
 
 # Summarize most relevant image metadata in one line
 def metadata_summary(path):
     exif=Metadata()
     exif.open_path(path)
     taglist=exif.get_tags()
-    
+
     # Date
     date=[]
     if 'Exif.Photo.DateTimeOriginal' in taglist:
@@ -137,14 +137,14 @@ def metadata_summary(path):
         date=time.strftime("%d/%m/%Y %H:%M:%S",time.strptime(date[0],"%Y:%m:%d %H:%M:%S"))
     else:
         date=""
-        
+
     # Orientation
     ori=exif.get('Exif.Image.Orientation',"?")
-    
+
     # Tags
     tags=[]
     if 'Iptc.Application2.Keywords' in taglist:
-        tags.append(exif['Iptc.Application2.Keywords'])        
+        tags.append(exif['Iptc.Application2.Keywords'])
     if 'Xmp.dc.subject' in taglist:
         tags+=exif['Xmp.dc.subject'].split(",")
     if 'Xmp.digiKam.TagsList' in taglist:
@@ -154,7 +154,7 @@ def metadata_summary(path):
     tags=[x.strip() for x in tags]
     tags=list(set(tags))
     tags.sort()
-        
+
     # Title
     aux=[]
     title=""
@@ -166,7 +166,7 @@ def metadata_summary(path):
         aux.append(exif['Iptc.Application2.Headline'])
     if len(aux)>0:
         title=aux[0]
-                    
+
     # Software
     aux=[]
     soft=""
@@ -176,23 +176,23 @@ def metadata_summary(path):
         aux.append(exif['Iptc.Application2.Program'])
     if len(aux)>0:
         soft=list(set(aux))[0]
-    
+
     # Shorten title and soft
     if len(title)>13:
         title=title[:10]+"..."
     if len(soft)>15:
         soft=soft[:12]+"..."
-        
+
     cadtitle="  title: %-13s" % title if len(title)>0 else 21*" "
     cadsoft="  soft: %-15s" % soft if len(soft)>0 else 35*" "
     sout="date: %s  orientation: %s" % (date,ori)
     sout+=cadtitle+cadsoft
-          
+
 #    if soft!="":
 #        sout+=", soft: %s" % soft
     if len(tags)>0:
         sout+="  tags:[%s]" % ",".join(tags)
-        
+
     return sout
 
 # The first, and only argument needs to be a directory
@@ -314,11 +314,11 @@ for dupset in nodupes:
                 metadata_comp_table(filelist)
             elif answer in ["help","h"]:
                 print
-                print "[0-9]:  Keep the selected file, delete the rest"                
-                print "all:    Keep all files, don't delete anything"                
-                print "show:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)"                
-                print "detail: Show a detailed table with metadata differences between files"                
-                print "help:   Show this screen"                
+                print "[0-9]:  Keep the selected file, delete the rest"
+                print "all:    Keep all files, don't delete anything"
+                print "show:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)"
+                print "detail: Show a detailed table with metadata differences between files"
+                print "help:   Show this screen"
                 print "quit:   Exit program"
                 print
             elif answer in ["quit","q"]:
@@ -341,7 +341,7 @@ for dupset in nodupes:
                 optselected=True
             else:
                 # If it's no option, assume it's a number and delete all pictures except the chosen one
-                answer=int(answer)-1 
+                answer=int(answer)-1
                 for i in range(len(dupset)):
                     if i!=answer:
                         p=os.path.join(dupset[i]['dir'],dupset[i]['name'])
