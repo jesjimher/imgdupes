@@ -10,7 +10,7 @@ import zlib
 import hashlib
 import tempfile
 import shutil
-from gi.repository import GExiv2
+from gi.repository.GExiv2 import Metadata
 import time
 import texttable as tt
 from jpegtran import JPEGImage
@@ -81,7 +81,8 @@ def metadata_comp_table(files):
     # Extract tags for each file
     tags={}
     for f in files:
-        exif=GExiv2.Metadata(f)
+        exif=Metadata()
+        exif.open_path(f)
         tags[f]={(x,exif[x]) for x in exif.get_tags()}
     # Compute common tags intersecting all sets
     commontags=tags[files[0]]
@@ -121,7 +122,8 @@ def metadata_comp_table(files):
 
 # Summarize most relevant image metadata in one line
 def metadata_summary(path):
-    exif=GExiv2.Metadata(path)
+    exif=Metadata()
+    exif.open_path(path)
     taglist=exif.get_tags()
     
     # Date
