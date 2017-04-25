@@ -16,6 +16,7 @@ import texttable as tt
 from jpegtran import JPEGImage
 from StringIO import StringIO
 from multiprocessing import Pool
+from pprint import pprint
 
 VERSION="1.2"
 
@@ -298,28 +299,39 @@ del hashes,dupes
 nset=1
 tmpdirs=[]
 for dupset in nodupes:
+    # Add path field (for convenience) and sort by file path
+    for d in dupset:
+        d.update({"path":os.path.join(d["dir"],d["name"])})
+    dupset.sort(key=lambda k:k['path'])
     print
     if args.delete:
+        # Calculate best guess for auto mode
+        dupaux=[d['path'] for d in dupset]
+        # Sort by path length (probably not needed as dupset is already sorted, but just in case)
+        dupaux.sort(key=len)
+        # Best guess is the entry with most tags, or the one with shorter path if tags are equal (due to previous sort)
+        bestguess=dupaux.index(max(dupaux,key=metadata_summary))
+
         optselected=False
         while not optselected:
             # Prompt for which duplicated file to keep, delete the others
             for i in range(len(dupset)):
                 aux=dupset[i]
-                ruta=os.path.join(aux['dir'],aux['name'])
-                sys.stderr.write( "[%d] %-40s %s\n" % (i+1,ruta,metadata_summary(ruta)))
-            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, show, detail, help, quit] (default: all): " % (nset,len(nodupes),1,len(dupset)))
+                sys.stderr.write( "%-2s[%d] %-40s %s\n" % ("*" if i==bestguess else " ",i+1,aux['path'],metadata_summary(aux['path'])))
+            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
             if answer in ["detail","d"]:
                 # Show detailed differences in EXIF tags
                 filelist=[os.path.join(x['dir'],x['name']) for x in dupset]
                 metadata_comp_table(filelist)
             elif answer in ["help","h"]:
                 print
-                print "[0-9]:  Keep the selected file, delete the rest"
-                print "all:    Keep all files, don't delete anything"
-                print "show:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)"
-                print "detail: Show a detailed table with metadata differences between files"
-                print "help:   Show this screen"
-                print "quit:   Exit program"
+                print "[0-9]:    Keep the selected file, delete the rest"
+                print "(a)ll:    Keep all files, don't delete anything"
+                print "auto:     Keep picture with most tags, or shorter path. If equal, don't delete anything"
+                print "(s)how:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)"
+                print "(d)etail: Show a detailed table with metadata differences between files"
+                print "(h)elp:   Show this screen"
+                print "(q)uit:   Exit program"
                 print
             elif answer in ["quit","q"]:
                 # If asked, write changes, delete temps and quit
@@ -331,29 +343,37 @@ for dupset in nodupes:
                 tmpdir=tempfile.mkdtemp()
                 tmpdirs.append(tmpdir)
                 for i in range(len(dupset)):
-                    p=os.path.join(dupset[i]['dir'],dupset[i]['name'])
+                    p=dupset[i]['path']
                     ntemp="%d_%s" % (i,dupset[i]['name'])
                     shutil.copyfile(p,os.path.join(tmpdir,ntemp))
                 sub.Popen(["xdg-open",tmpdir],stdout=None,stderr=None)
-            elif answer in ["all","a",""]:
+            elif answer in ["all","a"]:
                 # Don't delete anything
                 sys.stderr.write("Skipping deletion, all duplicates remain\n")
                 optselected=True
+            elif answer in ["auto",""]:
+                answer=bestguess
             else:
-                # If it's no option, assume it's a number and delete all pictures except the chosen one
+                # If it's no option, assume it's a number and convert it to an array index
                 answer=int(answer)-1
+            # If we have a valid number as an answer, delete all but the selected file
+            try:
+                answer=int(answer)
                 for i in range(len(dupset)):
                     if i!=answer:
-                        p=os.path.join(dupset[i]['dir'],dupset[i]['name'])
+                        p=dupset[i]['path']
                         os.remove(p)
                         del jpegs[p]
                         modif=True
+                sys.stderr.write("Kept %s, deleted others\n" % (dupset[answer]["name"]))
                 optselected=True
+            except ValueError:
+                pass
         nset+=1
     else:
         # Just show duplicates
         for f in dupset:
-            print os.path.join(f['dir'],f['name']),
+            print f['path'],
             if not args.sameline:
                 print "\n",
 
