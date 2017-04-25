@@ -10,6 +10,8 @@ import zlib
 import hashlib
 import tempfile
 import shutil
+import gi
+gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
 import time
 import texttable as tt
