@@ -186,17 +186,9 @@ def metadata_summary(path):
     if len(soft)>15:
         soft=soft[:12]+"..."
 
-    cadtitle="  title: %-13s" % title if len(title)>0 else 21*" "
-    cadsoft="  soft: %-15s" % soft if len(soft)>0 else 35*" "
-    sout="date: %s  orientation: %s" % (date,ori)
-    sout+=cadtitle+cadsoft
+    dinfo={"date":date,"orientation":ori,"tags":tags,"title":title,"software":soft}
 
-#    if soft!="":
-#        sout+=", soft: %s" % soft
-    if len(tags)>0:
-        sout+="  tags:[%s]" % ",".join(tags)
-
-    return sout
+    return dinfo
 
 # The first, and only argument needs to be a directory
 parser=argparse.ArgumentParser(description="Checks for duplicated images in a directory tree. Compares just image data, metadata is ignored, so physically different files may be reported as duplicates if they have different metadata (tags, titles, JPEG rotation, EXIF info...).")
@@ -297,7 +289,6 @@ for elem in dupes.values():
 # Cleanup. Not strictly necessary, but if there're a lot of files these can get quite big
 del hashes,dupes
 
-#TODO:Read tags, software used, title
 nset=1
 tmpdirs=[]
 for dupset in nodupes:
@@ -312,15 +303,27 @@ for dupset in nodupes:
         # Sort by path length (probably not needed as dupset is already sorted, but just in case)
         dupaux.sort(key=len)
         # Best guess is the entry with most tags, or the one with shorter path if tags are equal (due to previous sort)
-        bestguess=dupaux.index(max(dupaux,key=metadata_summary))
+        bestguess=dupaux.index(max(dupaux,key=lambda k:len(metadata_summary(k)["tags"])))
 
         optselected=False
         while not optselected:
             # Prompt for which duplicated file to keep, delete the others
+            t=tt.Texttable()
+            t.set_cols_align(["c","r","l","l","l","l","l","l"])
+            t.set_chars(['-','|','+','-'])
+            t.set_deco(t.HEADER)
+            # Get terminal width in order to set column sizes.
+            colsize=int(os.popen('stty size', 'r').read().split()[1])
+            t.set_cols_width([1,1,50,20,11,10,10,colsize-103-30])
+
+            rws=[["","#","file","date","orientation","title","software","tags"]]
             for i in range(len(dupset)):
                 aux=dupset[i]
-                sys.stderr.write( "%-2s[%d] %-40s %s\n" % ("*" if i==bestguess else " ",i+1,aux['path'],metadata_summary(aux['path'])))
-            answer=raw_input("Set %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
+                md=metadata_summary(aux["path"])
+                rws.append(["*" if i==bestguess else " ",i+1,dupset[i]["path"],md["date"],md["orientation"],md["title"],md["software"],", ".join(md["tags"])])
+            t.add_rows(rws)
+            print("\n"+t.draw())
+            answer=raw_input("\nSet %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
             if answer in ["detail","d"]:
                 # Show detailed differences in EXIF tags
                 filelist=[os.path.join(x['dir'],x['name']) for x in dupset]
