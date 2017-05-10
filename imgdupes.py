@@ -37,7 +37,7 @@ def phash(x):
     try:
         im=Image.open(StringIO(data))
     except IOError:
-        sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
+        sys.stderr.write("    *** Error reading image data, it will be ignored\n")
         return ["ERR"]
 
     datstr=im.tobytes()
