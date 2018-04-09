@@ -195,10 +195,15 @@ parser=argparse.ArgumentParser(description="Checks for duplicated images in a di
 parser.add_argument('directory',help="Base directory to check")
 parser.add_argument('-1','--sameline',help="List each set of matches in a single line",action='store_true',required=False)
 parser.add_argument('-d','--delete',help="Prompt user for files to preserve, deleting all others",action='store_true',required=False)
+parser.add_argument('-a','--auto',help="If -d or --delete flag is enabled, always select the 'auto' action to select the file to preserve.",action='store_true',required=False)
 parser.add_argument('-c','--clean',help="Don't write to disk signatures cache",action='store_true',required=False)
 parser.add_argument('-m','--method',help="Hash method to use. Default is MD5, but CRC might be faster on slower CPUs where process is not I/O bound",default="MD5",choices=["MD5","CRC"],required=False)
 parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 args=parser.parse_args()
+
+if args.auto and not args.delete:
+    sys.stderr.write("'-a' or '--auto' only makes sense when deleting files with '-d' or '--delete'\n")
+    exit(1)
 
 pwd=os.getcwd()
 
@@ -323,7 +328,10 @@ for dupset in nodupes:
                 rws.append(["*" if i==bestguess else " ",i+1,dupset[i]["path"],md["date"],md["orientation"],md["title"],md["software"],", ".join(md["tags"])])
             t.add_rows(rws)
             print("\n"+t.draw())
-            answer=raw_input("\nSet %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
+            if args.auto:
+                answer='auto'
+            else:
+                answer=raw_input("\nSet %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
             if answer in ["detail","d"]:
                 # Show detailed differences in EXIF tags
                 filelist=[os.path.join(x['dir'],x['name']) for x in dupset]
