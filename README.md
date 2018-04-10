@@ -18,7 +18,7 @@ Analyzing each image chunk of data in order to compare and find duplicates is a 
 
 As a final disclaimer, imgdupes is provided as is, and I can't be made responsible of any damages that might happen to your collection by using it. I use imgdupes myself, so I'm reasonably confident that it works, and at the same time I'm the first interested in that it's free of bugs, but I can't make any guarantee of that. Keep also in mind that, even if imgdupes reports that two files correspond to the same image, this might not necessarily mean that you have to delete one of them. It's up to you to decide which cases correspond to software mistakes (i. e. re-importing an existing image that had been already imported and tagged) and which ones are legitimate.
 
-##Requirements
+## Requirements
 
 The following external packages are required to execute imgdupes:
 
@@ -40,7 +40,9 @@ git clone https://github.com/jbaiter/jpegtran-cffi.git
 cd jpegtran-cffi
 sudo python setup.py install
 ```
-##History
+On Debian stretch libturbojpeg0-dev is required. For Arch Linux there are AUR packages [imgdupes](https://aur.archlinux.org/packages/imgdupes/) and [imgdupes-git](https://aur.archlinux.org/packages/imgdupes-git/).
+
+## History
 
 v1.2
 
