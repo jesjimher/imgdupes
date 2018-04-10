@@ -63,7 +63,11 @@ def hashcalc(path,pool,method="MD5"):
     except IOError:
         sys.stderr.write("    *** Error opening file %s, file will be ignored\n" % path)
         return ["ERR"]
-    results=pool.map(phash,lista)
+    try:
+        results=pool.map(phash,lista)
+    except:
+        sys.stderr.write("    *** Error reading image data, it will be ignored\n")
+        return ["ERR"]
 
     return results
 
