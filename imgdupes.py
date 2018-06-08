@@ -19,6 +19,7 @@ from jpegtran import JPEGImage
 from StringIO import StringIO
 from multiprocessing import Pool
 from pprint import pprint
+from subprocess import check_call
 
 VERSION="1.2"
 
@@ -55,6 +56,16 @@ def phash(x):
 # Uses a process pool to benefit from multiple cores
 def hashcalc(path,pool,method="MD5"):
     rots=[0,90,180,270]
+
+    # Check file integrity using jpeginfo if available
+    if havejpeginfo:
+        try:
+            devnull = open(os.devnull, 'w')
+            check_call(["jpeginfo","-c",path],stdout=devnull,stderr=devnull)
+        except:
+            sys.stderr.write("     Corrupt JPEG, skipping\n")
+            return ["ERR"]
+
     try:
         img=JPEGImage(path)
         lista=[]
@@ -210,6 +221,15 @@ if args.auto and not args.delete:
     exit(1)
 
 pwd=os.getcwd()
+
+# Check if jpeginfo is installed
+havejpeginfo=True
+try:
+    devnull = open(os.devnull, 'w')
+    check_call(["jpeginfo","--version"],stdout=devnull,stderr=devnull)
+    sys.stderr.write("jpeginfo found in system, will be used to check JPEG file integrity\n")
+except CalledProcessError:
+    havejpeginfo=False
 
 try:
     os.chdir(args.directory)
