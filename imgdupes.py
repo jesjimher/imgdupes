@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import os
 import sys
@@ -16,12 +16,12 @@ from gi.repository.GExiv2 import Metadata
 import time
 import texttable as tt
 from jpegtran import JPEGImage
-from StringIO import StringIO
+from io import BytesIO
 from multiprocessing import Pool
 from pprint import pprint
 from subprocess import check_call
 
-VERSION="1.2"
+VERSION="1.3"
 
 # Calculates hash of the specified object x. x is a tuple with the format (JPEGImage object,rotation,hash_method)
 # This is the function that will be executed in the process pool
@@ -36,7 +36,7 @@ def phash(x):
     else:
         data=img.rotate(rot).as_blob()
     try:
-        im=Image.open(StringIO(data))
+        im=Image.open(BytesIO(data))
     except IOError:
         sys.stderr.write("    *** Error reading image data, it will be ignored\n")
         return ["ERR"]
@@ -131,10 +131,10 @@ def metadata_comp_table(files):
     maxw=len(max(alluniquetags,key=len)) if alluniquetags else 5
     arrw=[maxw]+[25]*len(files)
     t.set_cols_width(arrw)
-    print
-    print t.draw()
-    print "\n(Unique fields only. Common EXIF tags have been omitted)"
-    print
+    print()
+    print(t.draw())
+    print("\n(Unique fields only. Common EXIF tags have been omitted)")
+    print()
 
 
 
@@ -252,11 +252,11 @@ if os.path.isfile(fsigs):
     cache=open(fsigs,'rb')
     try:
         sys.stderr.write("Signatures cache detected, loading...\n")
-        jpegs=pickle.load(cache)
+        jpegs=pickle.load(file=cache)
         cache.close()
 	# Clean up non-existing entries
         sys.stderr.write("Cleaning up deleted files from cache...\n")
-	jpegs=dict(filter(lambda x:os.path.exists(x[0]),jpegs.iteritems()))
+        jpegs=dict([x for x in iter(jpegs.items()) if os.path.exists(x[0])])
     except (pickle.UnpicklingError,KeyError,EOFError,ImportError,IndexError):
         # Si el fichero no es válido, ignorarlo y marcar que hay que escribir cambios
         jpegs={}
@@ -312,7 +312,7 @@ for h in hashes:
 if 'ERR' in dupes: del dupes['ERR']
 # Discard duplicated sets (probably a lot if --rotations is activated)
 nodupes=[]
-for elem in dupes.values():
+for elem in list(dupes.values()):
     if not elem in nodupes:
         nodupes.append(elem)
 # Cleanup. Not strictly necessary, but if there're a lot of files these can get quite big
@@ -325,7 +325,7 @@ for dupset in nodupes:
     for d in dupset:
         d.update({"path":os.path.join(d["dir"],d["name"])})
     dupset.sort(key=lambda k:k['path'])
-    print
+    print()
     if args.delete:
         # Calculate best guess for auto mode
         dupaux=[d['path'] for d in dupset]
@@ -351,25 +351,25 @@ for dupset in nodupes:
                 md=metadata_summary(aux["path"])
                 rws.append(["*" if i==bestguess else " ",i+1,dupset[i]["path"],md["date"],md["orientation"],md["title"],md["software"],", ".join(md["tags"])])
             t.add_rows(rws)
-            print("\n"+t.draw())
+            print(("\n"+t.draw()))
             if args.auto:
                 answer='auto'
             else:
-                answer=raw_input("\nSet %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
+                answer=input("\nSet %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
             if answer in ["detail","d"]:
                 # Show detailed differences in EXIF tags
                 filelist=[os.path.join(x['dir'],x['name']) for x in dupset]
                 metadata_comp_table(filelist)
             elif answer in ["help","h"]:
-                print
-                print "[0-9]:    Keep the selected file, delete the rest"
-                print "(a)ll:    Keep all files, don't delete anything"
-                print "auto:     Keep picture with most tags, or shorter path. If equal, don't delete anything"
-                print "(s)how:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)"
-                print "(d)etail: Show a detailed table with metadata differences between files"
-                print "(h)elp:   Show this screen"
-                print "(q)uit:   Exit program"
-                print
+                print()
+                print("[0-9]:    Keep the selected file, delete the rest")
+                print("(a)ll:    Keep all files, don't delete anything")
+                print("auto:     Keep picture with most tags, or shorter path. If equal, don't delete anything")
+                print("(s)how:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)")
+                print("(d)etail: Show a detailed table with metadata differences between files")
+                print("(h)elp:   Show this screen")
+                print("(q)uit:   Exit program")
+                print()
             elif answer in ["quit","q"]:
                 # If asked, write changes, delete temps and quit
                 if modif: writecache(jpegs)
@@ -410,9 +410,9 @@ for dupset in nodupes:
     else:
         # Just show duplicates
         for f in dupset:
-            print f['path'],
+            print(f['path'], end=' ')
             if not args.sameline:
-                print "\n",
+                print("\n", end=' ')
 
 # Final update of the cache in order to remove signatures of deleted files
 if modif: writecache(jpegs)
