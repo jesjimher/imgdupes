@@ -228,7 +228,8 @@ try:
     devnull = open(os.devnull, 'w')
     check_call(["jpeginfo","--version"],stdout=devnull,stderr=devnull)
     sys.stderr.write("jpeginfo found in system, will be used to check JPEG file integrity\n")
-except CalledProcessError:
+except (sub.CalledProcessError,FileNotFoundError):
+    sys.stderr.write("jpeginfo not found in system, please install it for smarter JPEG file integrity detection\n")
     havejpeginfo=False
 
 try:
