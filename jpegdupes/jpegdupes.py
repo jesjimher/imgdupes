@@ -83,7 +83,7 @@ def hashcalc(path,pool,method="MD5",havejpeginfo=False):
     return results
 
 # Writes the specified dict to disk
-def writecache(d,args):
+def writecache(d,args,fsigs):
     if not args.clean:
         cache=open(fsigs,'wb')
         pickle.dump(d,cache)
@@ -274,7 +274,7 @@ def main():
         for fname in fileList:
             # Update signatures cache every 100 files
             if modif and ((count % 100)==0):
-                writecache(jpegs,args)
+                writecache(jpegs,args,fsigs)
                 modif=False
             if fname.lower().endswith(extensiones):
                 ruta=os.path.join(dirName,fname)
@@ -291,7 +291,7 @@ def main():
                     count+=1
 
     # Write hash cache to disk
-    if modif: writecache(jpegs,args)
+    if modif: writecache(jpegs,args,fsigs)
 
     # Check for duplicates
 
@@ -374,7 +374,7 @@ def main():
                     print()
                 elif answer in ["quit","q"]:
                     # If asked, write changes, delete temps and quit
-                    if modif: writecache(jpegs,args)
+                    if modif: writecache(jpegs,args,fsigs)
                     rmtemps(tmpdirs)
                     exit(0)
                 elif answer in ["show","s"]:
@@ -417,7 +417,7 @@ def main():
                     print("\n", end=' ')
 
     # Final update of the cache in order to remove signatures of deleted files
-    if modif: writecache(jpegs,args)
+    if modif: writecache(jpegs,args,fsigs)
 
     # Delete temps
     rmtemps(tmpdirs)
