@@ -21,7 +21,7 @@ from multiprocessing import Pool
 from pprint import pprint
 from subprocess import check_call
 
-VERSION="1.3"
+VERSION="2.0"
 
 # Calculates hash of the specified object x. x is a tuple with the format (JPEGImage object,rotation,hash_method)
 # This is the function that will be executed in the process pool
