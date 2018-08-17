@@ -54,7 +54,7 @@ def phash(x):
 # Calculates all possible hashes for a single file (normal, and all possible rotations)
 # Just image data, ignore headers
 # Uses a process pool to benefit from multiple cores
-def hashcalc(path,pool,method="MD5"):
+def hashcalc(path,pool,method="MD5",havejpeginfo=False):
     rots=[0,90,180,270]
 
     # Check file integrity using jpeginfo if available
@@ -83,7 +83,7 @@ def hashcalc(path,pool,method="MD5"):
     return results
 
 # Writes the specified dict to disk
-def writecache(d):
+def writecache(d,args):
     if not args.clean:
         cache=open(fsigs,'wb')
         pickle.dump(d,cache)
@@ -205,221 +205,226 @@ def metadata_summary(path):
 
     return dinfo
 
-# The first, and only argument needs to be a directory
-parser=argparse.ArgumentParser(description="Checks for duplicated images in a directory tree. Compares just image data, metadata is ignored, so physically different files may be reported as duplicates if they have different metadata (tags, titles, JPEG rotation, EXIF info...).")
-parser.add_argument('directory',help="Base directory to check")
-parser.add_argument('-1','--sameline',help="List each set of matches in a single line",action='store_true',required=False)
-parser.add_argument('-d','--delete',help="Prompt user for files to preserve, deleting all others",action='store_true',required=False)
-parser.add_argument('-a','--auto',help="If -d or --delete flag is enabled, always select the 'auto' action to select the file to preserve.",action='store_true',required=False)
-parser.add_argument('-c','--clean',help="Don't write to disk signatures cache",action='store_true',required=False)
-parser.add_argument('-m','--method',help="Hash method to use. Default is MD5, but CRC might be faster on slower CPUs where process is not I/O bound",default="MD5",choices=["MD5","CRC"],required=False)
-parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
-args=parser.parse_args()
+def main():
+    # The first, and only argument needs to be a directory
+    parser=argparse.ArgumentParser(description="Checks for duplicated images in a directory tree. Compares just image data, metadata is ignored, so physically different files may be reported as duplicates if they have different metadata (tags, titles, JPEG rotation, EXIF info...).")
+    parser.add_argument('directory',help="Base directory to check")
+    parser.add_argument('-1','--sameline',help="List each set of matches in a single line",action='store_true',required=False)
+    parser.add_argument('-d','--delete',help="Prompt user for files to preserve, deleting all others",action='store_true',required=False)
+    parser.add_argument('-a','--auto',help="If -d or --delete flag is enabled, always select the 'auto' action to select the file to preserve.",action='store_true',required=False)
+    parser.add_argument('-c','--clean',help="Don't write to disk signatures cache",action='store_true',required=False)
+    parser.add_argument('-m','--method',help="Hash method to use. Default is MD5, but CRC might be faster on slower CPUs where process is not I/O bound",default="MD5",choices=["MD5","CRC"],required=False)
+    parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
+    args=parser.parse_args()
 
-if args.auto and not args.delete:
-    sys.stderr.write("'-a' or '--auto' only makes sense when deleting files with '-d' or '--delete'\n")
-    exit(1)
+    if args.auto and not args.delete:
+        sys.stderr.write("'-a' or '--auto' only makes sense when deleting files with '-d' or '--delete'\n")
+        exit(1)
 
-pwd=os.getcwd()
+    pwd=os.getcwd()
 
-# Check if jpeginfo is installed
-havejpeginfo=True
-try:
-    devnull = open(os.devnull, 'w')
-    check_call(["jpeginfo","--version"],stdout=devnull,stderr=devnull)
-    sys.stderr.write("jpeginfo found in system, will be used to check JPEG file integrity\n")
-except (sub.CalledProcessError,FileNotFoundError):
-    sys.stderr.write("jpeginfo not found in system, please install it for smarter JPEG file integrity detection\n")
-    havejpeginfo=False
-
-try:
-    os.chdir(args.directory)
-except:
-    sys.stderr.write( "Directory %s doesn't exist\n" % args.directory)
-    exit(1)
-
-# Extensiones admitidas (case insensitive)
-extensiones=('jpg','jpeg')
-
-# Diccionario con información sobre los ficheros
-jpegs={}
-# Flag para saber si hay que volver a escribir la caché por cambios
-modif=False
-
-# Recuperar información de los ficheros generada previamente, si existe
-rootDir='.'
-fsigs='.signatures'
-if os.path.isfile(fsigs):
-    cache=open(fsigs,'rb')
+    # Check if jpeginfo is installed
+    havejpeginfo=True
     try:
-        sys.stderr.write("Signatures cache detected, loading...\n")
-        jpegs=pickle.load(file=cache)
-        cache.close()
-	# Clean up non-existing entries
-        sys.stderr.write("Cleaning up deleted files from cache...\n")
-        jpegs=dict([x for x in iter(jpegs.items()) if os.path.exists(x[0])])
-    except (pickle.UnpicklingError,KeyError,EOFError,ImportError,IndexError):
-        # Si el fichero no es válido, ignorarlo y marcar que hay que escribir cambios
-        jpegs={}
-        modif=True
-        cache.close()
+        devnull = open(os.devnull, 'w')
+        check_call(["jpeginfo","--version"],stdout=devnull,stderr=devnull)
+        sys.stderr.write("jpeginfo found in system, will be used to check JPEG file integrity\n")
+    except (sub.CalledProcessError,FileNotFoundError):
+        sys.stderr.write("jpeginfo not found in system, please install it for smarter JPEG file integrity detection\n")
+        havejpeginfo=False
 
-# Create process pool for parallel hash calculation
-pool=Pool()
+    try:
+        os.chdir(args.directory)
+    except:
+        sys.stderr.write( "Directory %s doesn't exist\n" % args.directory)
+        exit(1)
 
-count=1
-for dirName, subdirList, fileList in os.walk(rootDir):
-    sys.stderr.write('Exploring %s\n' % dirName)
-    for fname in fileList:
-        # Update signatures cache every 100 files
-        if modif and ((count % 100)==0):
-            writecache(jpegs)
-            modif=False
-        if fname.lower().endswith(extensiones):
-            ruta=os.path.join(dirName,fname)
-            # Si el fichero no está en la caché, o está pero con tamaño diferente, añadirlo
-            if (ruta not in jpegs) or ((ruta in jpegs) and (jpegs[ruta]['size']!=os.path.getsize(ruta))):
-                sys.stderr.write("   Calculating hash of %s...\n" % ruta)
-                jpegs[ruta]={
-                        'name':fname,
-                        'dir':dirName,
-                        'hash':hashcalc(ruta,pool,args.method),
-                        'size':os.path.getsize(ruta)
-                        }
-                modif=True
-                count+=1
+    # Extensiones admitidas (case insensitive)
+    extensiones=('jpg','jpeg')
 
-# Write hash cache to disk
-if modif: writecache(jpegs)
+    # Diccionario con información sobre los ficheros
+    jpegs={}
+    # Flag para saber si hay que volver a escribir la caché por cambios
+    modif=False
 
-# Check for duplicates
+    # Recuperar información de los ficheros generada previamente, si existe
+    rootDir='.'
+    fsigs='.signatures'
+    if os.path.isfile(fsigs):
+        cache=open(fsigs,'rb')
+        try:
+            sys.stderr.write("Signatures cache detected, loading...\n")
+            jpegs=pickle.load(file=cache)
+            cache.close()
+            # Clean up non-existing entries
+            sys.stderr.write("Cleaning up deleted files from cache...\n")
+            jpegs=dict([x for x in iter(jpegs.items()) if os.path.exists(x[0])])
+        except (pickle.UnpicklingError,KeyError,EOFError,ImportError,IndexError):
+            # Si el fichero no es válido, ignorarlo y marcar que hay que escribir cambios
+            jpegs={}
+            modif=True
+            cache.close()
 
-# Create a new dict indexed by hash
-# Initialize dict with an empty list for every possible hash
-hashes={}
-for f in jpegs:
-    for h in jpegs[f]['hash']:
-        hashes[h]=[]
-# Group files with the same hash together
-for f in jpegs:
-    for h in jpegs[f]['hash']:
-        hashes[h].append(jpegs[f])
-# Discard hashes without duplicates
-dupes={}
-for h in hashes:
-    if len(hashes[h])>1:
-        dupes[h]=hashes[h]
-# Delete entries whose hash couldn't be generated, so they're not reported as duplicates
-if 'ERR' in dupes: del dupes['ERR']
-# Discard duplicated sets (probably a lot if --rotations is activated)
-nodupes=[]
-for elem in list(dupes.values()):
-    if not elem in nodupes:
-        nodupes.append(elem)
-# Cleanup. Not strictly necessary, but if there're a lot of files these can get quite big
-del hashes,dupes
+    # Create process pool for parallel hash calculation
+    pool=Pool()
 
-nset=1
-tmpdirs=[]
-for dupset in nodupes:
-    # Add path field (for convenience) and sort by file path
-    for d in dupset:
-        d.update({"path":os.path.join(d["dir"],d["name"])})
-    dupset.sort(key=lambda k:k['path'])
-    print()
-    if args.delete:
-        # Calculate best guess for auto mode
-        dupaux=[d['path'] for d in dupset]
-        # Sort by path length (probably not needed as dupset is already sorted, but just in case)
-        dupaux.sort(key=len)
-        # Best guess is the entry with most tags, or the one with shorter path if tags are equal (due to previous sort)
-        bestguess=dupaux.index(max(dupaux,key=lambda k:len(metadata_summary(k)["tags"])))
+    count=1
+    for dirName, subdirList, fileList in os.walk(rootDir):
+        sys.stderr.write('Exploring %s\n' % dirName)
+        for fname in fileList:
+            # Update signatures cache every 100 files
+            if modif and ((count % 100)==0):
+                writecache(jpegs,args)
+                modif=False
+            if fname.lower().endswith(extensiones):
+                ruta=os.path.join(dirName,fname)
+                # Si el fichero no está en la caché, o está pero con tamaño diferente, añadirlo
+                if (ruta not in jpegs) or ((ruta in jpegs) and (jpegs[ruta]['size']!=os.path.getsize(ruta))):
+                    sys.stderr.write("   Calculating hash of %s...\n" % ruta)
+                    jpegs[ruta]={
+                            'name':fname,
+                            'dir':dirName,
+                            'hash':hashcalc(ruta,pool,args.method,havejpeginfo),
+                            'size':os.path.getsize(ruta)
+                            }
+                    modif=True
+                    count+=1
 
-        optselected=False
-        while not optselected:
-            # Prompt for which duplicated file to keep, delete the others
-            t=tt.Texttable()
-            t.set_cols_align(["c","r","l","l","l","l","l","l"])
-            t.set_chars(['-','|','+','-'])
-            t.set_deco(t.HEADER)
-            # Get terminal width in order to set column sizes.
-            colsize=int(os.popen('stty size', 'r').read().split()[1])
-            t.set_cols_width([1,1,50,20,11,10,10,colsize-103-30])
+    # Write hash cache to disk
+    if modif: writecache(jpegs,args)
 
-            rws=[["","#","file","date","orientation","title","software","tags"]]
-            for i in range(len(dupset)):
-                aux=dupset[i]
-                md=metadata_summary(aux["path"])
-                rws.append(["*" if i==bestguess else " ",i+1,dupset[i]["path"],md["date"],md["orientation"],md["title"],md["software"],", ".join(md["tags"])])
-            t.add_rows(rws)
-            print(("\n"+t.draw()))
-            if args.auto:
-                answer='auto'
-            else:
-                answer=input("\nSet %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
-            if answer in ["detail","d"]:
-                # Show detailed differences in EXIF tags
-                filelist=[os.path.join(x['dir'],x['name']) for x in dupset]
-                metadata_comp_table(filelist)
-            elif answer in ["help","h"]:
-                print()
-                print("[0-9]:    Keep the selected file, delete the rest")
-                print("(a)ll:    Keep all files, don't delete anything")
-                print("auto:     Keep picture with most tags, or shorter path. If equal, don't delete anything")
-                print("(s)how:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)")
-                print("(d)etail: Show a detailed table with metadata differences between files")
-                print("(h)elp:   Show this screen")
-                print("(q)uit:   Exit program")
-                print()
-            elif answer in ["quit","q"]:
-                # If asked, write changes, delete temps and quit
-                if modif: writecache(jpegs)
-                rmtemps(tmpdirs)
-                exit(0)
-            elif answer in ["show","s"]:
-                # Create a temporary directory, copy duplicated files and open a file manager
-                tmpdir=tempfile.mkdtemp()
-                tmpdirs.append(tmpdir)
+    # Check for duplicates
+
+    # Create a new dict indexed by hash
+    # Initialize dict with an empty list for every possible hash
+    hashes={}
+    for f in jpegs:
+        for h in jpegs[f]['hash']:
+            hashes[h]=[]
+    # Group files with the same hash together
+    for f in jpegs:
+        for h in jpegs[f]['hash']:
+            hashes[h].append(jpegs[f])
+    # Discard hashes without duplicates
+    dupes={}
+    for h in hashes:
+        if len(hashes[h])>1:
+            dupes[h]=hashes[h]
+    # Delete entries whose hash couldn't be generated, so they're not reported as duplicates
+    if 'ERR' in dupes: del dupes['ERR']
+    # Discard duplicated sets (probably a lot if --rotations is activated)
+    nodupes=[]
+    for elem in list(dupes.values()):
+        if not elem in nodupes:
+            nodupes.append(elem)
+    # Cleanup. Not strictly necessary, but if there're a lot of files these can get quite big
+    del hashes,dupes
+
+    nset=1
+    tmpdirs=[]
+    for dupset in nodupes:
+        # Add path field (for convenience) and sort by file path
+        for d in dupset:
+            d.update({"path":os.path.join(d["dir"],d["name"])})
+        dupset.sort(key=lambda k:k['path'])
+        print()
+        if args.delete:
+            # Calculate best guess for auto mode
+            dupaux=[d['path'] for d in dupset]
+            # Sort by path length (probably not needed as dupset is already sorted, but just in case)
+            dupaux.sort(key=len)
+            # Best guess is the entry with most tags, or the one with shorter path if tags are equal (due to previous sort)
+            bestguess=dupaux.index(max(dupaux,key=lambda k:len(metadata_summary(k)["tags"])))
+
+            optselected=False
+            while not optselected:
+                # Prompt for which duplicated file to keep, delete the others
+                t=tt.Texttable()
+                t.set_cols_align(["c","r","l","l","l","l","l","l"])
+                t.set_chars(['-','|','+','-'])
+                t.set_deco(t.HEADER)
+                # Get terminal width in order to set column sizes.
+                colsize=int(os.popen('stty size', 'r').read().split()[1])
+                t.set_cols_width([1,1,50,20,11,10,10,colsize-103-30])
+
+                rws=[["","#","file","date","orientation","title","software","tags"]]
                 for i in range(len(dupset)):
-                    p=dupset[i]['path']
-                    ntemp="%d_%s" % (i,dupset[i]['name'])
-                    shutil.copyfile(p,os.path.join(tmpdir,ntemp))
-                sub.Popen(["xdg-open",tmpdir],stdout=None,stderr=None)
-            elif answer in ["all","a"]:
-                # Don't delete anything
-                sys.stderr.write("Skipping deletion, all duplicates remain\n")
-                optselected=True
-            elif answer in ["auto",""]:
-                answer=bestguess
-            else:
-                # If it's no option, assume it's a number and convert it to an array index
-                answer=int(answer)-1
-            # If we have a valid number as an answer, delete all but the selected file
-            try:
-                answer=int(answer)
-                for i in range(len(dupset)):
-                    if i!=answer:
+                    aux=dupset[i]
+                    md=metadata_summary(aux["path"])
+                    rws.append(["*" if i==bestguess else " ",i+1,dupset[i]["path"],md["date"],md["orientation"],md["title"],md["software"],", ".join(md["tags"])])
+                t.add_rows(rws)
+                print(("\n"+t.draw()))
+                if args.auto:
+                    answer='auto'
+                else:
+                    answer=input("\nSet %d of %d, preserve files [%d - %d, all, auto, show, detail, help, quit] (default: auto): " % (nset,len(nodupes),1,len(dupset)))
+                if answer in ["detail","d"]:
+                    # Show detailed differences in EXIF tags
+                    filelist=[os.path.join(x['dir'],x['name']) for x in dupset]
+                    metadata_comp_table(filelist)
+                elif answer in ["help","h"]:
+                    print()
+                    print("[0-9]:    Keep the selected file, delete the rest")
+                    print("(a)ll:    Keep all files, don't delete anything")
+                    print("auto:     Keep picture with most tags, or shorter path. If equal, don't delete anything")
+                    print("(s)how:   Copy duplicated files to a temporary directory and open in a file manager window (desktop default)")
+                    print("(d)etail: Show a detailed table with metadata differences between files")
+                    print("(h)elp:   Show this screen")
+                    print("(q)uit:   Exit program")
+                    print()
+                elif answer in ["quit","q"]:
+                    # If asked, write changes, delete temps and quit
+                    if modif: writecache(jpegs,args)
+                    rmtemps(tmpdirs)
+                    exit(0)
+                elif answer in ["show","s"]:
+                    # Create a temporary directory, copy duplicated files and open a file manager
+                    tmpdir=tempfile.mkdtemp()
+                    tmpdirs.append(tmpdir)
+                    for i in range(len(dupset)):
                         p=dupset[i]['path']
-                        os.remove(p)
-                        del jpegs[p]
-                        modif=True
-                sys.stderr.write("Kept %s, deleted others\n" % (dupset[answer]["name"]))
-                optselected=True
-            except ValueError:
-                pass
-        nset+=1
-    else:
-        # Just show duplicates
-        for f in dupset:
-            print(f['path'], end=' ')
-            if not args.sameline:
-                print("\n", end=' ')
+                        ntemp="%d_%s" % (i,dupset[i]['name'])
+                        shutil.copyfile(p,os.path.join(tmpdir,ntemp))
+                    sub.Popen(["xdg-open",tmpdir],stdout=None,stderr=None)
+                elif answer in ["all","a"]:
+                    # Don't delete anything
+                    sys.stderr.write("Skipping deletion, all duplicates remain\n")
+                    optselected=True
+                elif answer in ["auto",""]:
+                    answer=bestguess
+                else:
+                    # If it's no option, assume it's a number and convert it to an array index
+                    answer=int(answer)-1
+                # If we have a valid number as an answer, delete all but the selected file
+                try:
+                    answer=int(answer)
+                    for i in range(len(dupset)):
+                        if i!=answer:
+                            p=dupset[i]['path']
+                            os.remove(p)
+                            del jpegs[p]
+                            modif=True
+                    sys.stderr.write("Kept %s, deleted others\n" % (dupset[answer]["name"]))
+                    optselected=True
+                except ValueError:
+                    pass
+            nset+=1
+        else:
+            # Just show duplicates
+            for f in dupset:
+                print(f['path'], end=' ')
+                if not args.sameline:
+                    print("\n", end=' ')
 
-# Final update of the cache in order to remove signatures of deleted files
-if modif: writecache(jpegs)
+    # Final update of the cache in order to remove signatures of deleted files
+    if modif: writecache(jpegs,args)
 
-# Delete temps
-rmtemps(tmpdirs)
+    # Delete temps
+    rmtemps(tmpdirs)
 
-# Restore directory
-os.chdir(pwd)
+    # Restore directory
+    os.chdir(pwd)
+
+# Execute main if called as a script
+if __name__ == "__main__":
+    main()

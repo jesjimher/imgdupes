@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="jpegdupes",
-    version="2.0.1",
+    version="2.0.10",
     author="Jesús Jiménez",
     author_email="jesjimenez@gmail.com",
     description="Image duplicate finder that ignores JPEG metadata",
@@ -23,4 +23,9 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
+#    scripts=['jpegdupes/jpegdupes.py']
+    entry_points={
+        'console_scripts': ['jpegdupes=jpegdupes.jpegdupes:main']
+        }
+    ,
 )
