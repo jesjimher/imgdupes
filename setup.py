@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="imgdupes",
-    version="2.0",
+    name="jpegdupes",
+    version="2.0.1",
     author="Jesús Jiménez",
     author_email="jesjimenez@gmail.com",
     description="Image duplicate finder that ignores JPEG metadata",
