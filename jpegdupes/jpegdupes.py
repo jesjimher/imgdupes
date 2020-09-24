@@ -1,26 +1,26 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import os
-import sys
-import subprocess as sub
-import pickle
 import argparse
-from PIL import Image
-import zlib
 import hashlib
-import tempfile
+import os
+import pickle
 import shutil
+import subprocess as sub
+import sys
+import tempfile
+import time
+import zlib
+from io import BytesIO
+from multiprocessing import Pool
+from subprocess import check_call
+
 import gi
+import texttable as tt
+from jpegtran import JPEGImage
+from PIL import Image
 
 gi.require_version("GExiv2", "0.10")
 from gi.repository.GExiv2 import Metadata
-import time
-import texttable as tt
-from jpegtran import JPEGImage
-from io import BytesIO
-from multiprocessing import Pool
-from pprint import pprint
-from subprocess import check_call
 
 VERSION = "2.0"
 
