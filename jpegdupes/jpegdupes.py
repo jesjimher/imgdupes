@@ -334,7 +334,8 @@ def main():
             ImportError,
             IndexError,
         ):
-            # Si el fichero no es válido, ignorarlo y marcar que hay que escribir cambios
+            # Si el fichero no es válido,
+            # ignorarlo y marcar que hay que escribir cambios
             jpegs = {}
             modif = True
             cache.close()
@@ -352,7 +353,8 @@ def main():
                 modif = False
             if fname.lower().endswith(extensiones):
                 ruta = os.path.join(dirName, fname)
-                # Si el fichero no está en la caché, o está pero con tamaño diferente, añadirlo
+                # Si el fichero no está en la caché,
+                # o está pero con tamaño diferente, añadirlo
                 if (ruta not in jpegs) or (
                     (ruta in jpegs)
                     and (jpegs[ruta]["size"] != os.path.getsize(ruta))
@@ -390,7 +392,8 @@ def main():
     for h in hashes:
         if len(hashes[h]) > 1:
             dupes[h] = hashes[h]
-    # Delete entries whose hash couldn't be generated, so they're not reported as duplicates
+    # Delete entries whose hash couldn't be generated,
+    # so they're not reported as duplicates
     if "ERR" in dupes:
         del dupes["ERR"]
     # Discard duplicated sets (probably a lot if --rotations is activated)
@@ -398,7 +401,8 @@ def main():
     for elem in list(dupes.values()):
         if not elem in nodupes:
             nodupes.append(elem)
-    # Cleanup. Not strictly necessary, but if there're a lot of files these can get quite big
+    # Cleanup. Not strictly necessary,
+    # but if there're a lot of files these can get quite big
     del hashes, dupes
 
     nset = 1
@@ -412,9 +416,13 @@ def main():
         if args.delete:
             # Calculate best guess for auto mode
             dupaux = [d["path"] for d in dupset]
-            # Sort by path length (probably not needed as dupset is already sorted, but just in case)
+            # Sort by path length
+            # (probably not needed as dupset is already sorted,
+            # but just in case)
             dupaux.sort(key=len)
-            # Best guess is the entry with most tags, or the one with shorter path if tags are equal (due to previous sort)
+            # Best guess is the entry with most tags,
+            # or the one with shorter path if tags are equal
+            # (due to previous sort)
             bestguess = dupaux.index(
                 max(dupaux, key=lambda k: len(metadata_summary(k)["tags"]))
             )
@@ -497,7 +505,8 @@ def main():
                     rmtemps(tmpdirs)
                     exit(0)
                 elif answer in ["show", "s"]:
-                    # Create a temporary directory, copy duplicated files and open a file manager
+                    # Create a temporary directory,
+                    # copy duplicated files and open a file manager
                     tmpdir = tempfile.mkdtemp()
                     tmpdirs.append(tmpdir)
                     for i in range(len(dupset)):
@@ -514,9 +523,11 @@ def main():
                 elif answer in ["auto", ""]:
                     answer = bestguess
                 else:
-                    # If it's no option, assume it's a number and convert it to an array index
+                    # If it's no option, assume it's a number
+                    # and convert it to an array index
                     answer = int(answer) - 1
-                # If we have a valid number as an answer, delete all but the selected file
+                # If we have a valid number as an answer,
+                # delete all but the selected file
                 try:
                     answer = int(answer)
                     for i in range(len(dupset)):
