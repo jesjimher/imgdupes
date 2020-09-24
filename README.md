@@ -28,11 +28,14 @@ jpegdupes uses Python 3 since v2. The following external packages are required t
 * jpeginfo: Not actually needed, but I've found a number of corrupt JPEG files that only jpeginfo has been able to detect. If jpegdupes finds it installed it will use it as an extra validation step, so if you find jpegdupes getting stuck at certain files, try installing jpeginfo in your system with apt or whatever.
 * Other dependencies: Python 3 CFFI support, libturbojpeg...
  
-All these packages are usually easily installable in any Linux distribution by using their own package managers. In Ubuntu, the following commands should install everything:
+All these packages are usually installable in any Linux distribution by using their own package managers.
 
+In Ubuntu, the following commands should install everything:
+
+```bash
+sudo apt-get install python3-dev libjpeg-dev gir1.2-gexiv2-0.10 jpeginfo python3-cffi libturbojpeg0-dev python3-gi
 ```
-sudo apt-get install python3-dev libjpeg-dev gir1.2-gexiv2-0.10 jpeginfo python3-cffi libturbojpeg0-dev
-```
+
 For Arch Linux there are AUR packages [imgdupes](https://aur.archlinux.org/packages/imgdupes/) and [imgdupes-git](https://aur.archlinux.org/packages/imgdupes-git/).
 
 ## History
