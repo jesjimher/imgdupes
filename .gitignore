@@ -1,2 +1,6 @@
 # ide
 .vscode
+
+# python
+*.pyc
+*.egg-info
