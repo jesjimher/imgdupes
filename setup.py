@@ -11,21 +11,19 @@ setuptools.setup(
     description="Image duplicate finder that ignores JPEG metadata",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    keywords='image duplicate finder metadata jpeg',
+    keywords="image duplicate finder metadata jpeg",
     url="https://github.com/jesjimher/imgdupes",
     packages=setuptools.find_packages(),
-    python_requires='>=3',
+    python_requires=">=3",
     install_requires=[
-        'texttable','jpegtran-cffi>0.5',
-        ],
+        "texttable",
+        "jpegtran-cffi>0.5",
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
-#    scripts=['jpegdupes/jpegdupes.py']
-    entry_points={
-        'console_scripts': ['jpegdupes=jpegdupes.jpegdupes:main']
-        }
-    ,
+    #    scripts=['jpegdupes/jpegdupes.py']
+    entry_points={"console_scripts": ["jpegdupes=jpegdupes.jpegdupes:main"]},
 )
