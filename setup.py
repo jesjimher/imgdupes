@@ -18,6 +18,7 @@ setuptools.setup(
     install_requires=[
         "texttable",
         "jpegtran-cffi>0.5",
+        "Pillow",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
