@@ -1,6 +1,7 @@
 import unittest
 import os, shutil
 from jpegdupes import jpegdupes
+# import jpegdupes.jpegdupes
 
 
 """ To run all tests in this class, from the root of the respository run:
@@ -54,3 +55,16 @@ class TestJpegDupes(unittest.TestCase):
         self.assertEquals(len(list(os.listdir(self.LIBRARY_DIR))), len(list(os.listdir(self.IMAGES_DIR)))-2, "Only 2 images should be deleted")
         for img in ("/donatello2.jpg", "/Raphael.jpeg"):
             self.assertFalse(os.path.isfile(self.LIBRARY_DIR + img), img)
+
+    def test_filterfolder(self):
+        """ The filterfolder function should detect that leo.jpg is not yet present in the library folder.
+            The older files should be recognized as duplicates and deleted.
+        """
+        tofilter = self.TOFILTER_DIR
+        library = self.LIBRARY_DIR
+        jpegdupes.filter_folder(tofilter, library, delete=True)
+
+        self.assertTrue(os.path.isfile(tofilter + jpegdupes.JPEG_CACHE_FILE))
+        self.assertTrue(os.path.isfile(tofilter + "/leo.jpg"))
+        for img in ("/donatello2.jpg", "/Raphael2.jpeg", "/mikey.jpg"):
+            self.assertFalse(os.path.isfile(tofilter + img), img)

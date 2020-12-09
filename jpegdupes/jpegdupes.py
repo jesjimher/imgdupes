@@ -237,7 +237,12 @@ def parse_cmdline():
     parser = argparse.ArgumentParser(
         description="Checks for duplicated images in a directory tree. Compares just image data, metadata is ignored, so physically different files may be reported as duplicates if they have different metadata (tags, titles, JPEG rotation, EXIF info...)."
     )
-    parser.add_argument("directory", help="Base directory to check")
+    parser.add_argument("directory", help="Base directory to check. When filtering against library folder, this is the directory from which files will be deleted.")
+    parser.add_argument(
+        "--library",
+        help="Optional. If library directory exists, files from directory that also exist in library, will be deleted from directory.",
+        required=False,
+    )
     parser.add_argument(
         "-1",
         "--sameline",
@@ -587,9 +592,47 @@ def remove_duplicates(args):
     os.chdir(pwd)
 
 
+def filter_folder(tofilter, library, delete, hash_method="MD5", clean=False):
+    """ Scan the tofilter folder and remove any jpegs from there that exist in the library folder as well, ignoring metadata.
+        Nothing will be deleted from the library folder.
+    """
+    
+    havejpeginfo = is_jpeginfo_installed()
+    
+    # calculate hashes or load from file for tofilter dir
+    # calculate hashes or load from file for library dir
+
+
+    jpegs_tofilter, _ , tofilter_count = get_hashes(tofilter, havejpeginfo, hash_method, clean)  # jpegs, modif, count
+    jpegs_library, _ , library_count = get_hashes(library, havejpeginfo, hash_method, clean)    # jpegs, modif, count
+    hashes_library = [h for jpeg in jpegs_library.values() for h in jpeg['hash']]
+
+    if not delete:
+        sys.stderr.write("No files will be deleted, only printed instead. Run with --delelte to delete")
+    sys.stderr.write("Files to be deleted:")
+
+    delete_count = 0
+    # for each hash in tofilter dir, if it exist in library, delete the corresponding file from tofilter dir
+    for fpath, jpeg in jpegs_tofilter.items():
+        for h in jpeg['hash']:
+            if h in hashes_library:
+                delete_count += 1
+                print(jpeg['name'])
+                if delete:
+                    os.remove(fpath)
+                break
+
+    # print summary
+    sys.stderr.write(f"nr hashes calculated- tofilter: {tofilter_count},  library: {library_count}")
+    sys.stderr.write(f"Nr files deleted {delete_count}")
+
+
 def main():
     args = parse_cmdline()
-    remove_duplicates(args)
+    if args.library is not None:
+        filter_folder(args.directory, args.library, args.delete, args.method, args.clean)
+    else:
+        remove_duplicates(args)
 
 
 # Execute main if called as a script
