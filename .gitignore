@@ -4,3 +4,7 @@
 # python
 *.pyc
 *.egg-info
+
+# test data
+tests/library
+tests/tofilter
