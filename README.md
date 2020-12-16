@@ -61,6 +61,10 @@ For Arch Linux there are AUR packages [imgdupes](https://aur.archlinux.org/packa
 
 ## History
 
+v2.1
+
+New --library option, and several cleanup and code improvements from hilkoc (thanks a lot!)
+
 v2.0
 
  Migration from Python 2 to 3
