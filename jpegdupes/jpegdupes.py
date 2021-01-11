@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import argparse
+import contextlib
 import hashlib
 import os
 import pickle
@@ -26,6 +27,30 @@ from gi.repository.GExiv2 import Metadata
 VERSION = "2.1"
 
 JPEG_CACHE_FILE = "/.signatures"
+
+
+
+# a context manager to do work within given directory
+@contextlib.contextmanager
+def in_dir(path):
+    cwd = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    except OSError:
+        sys.stderr.write("Directory %s doesn't exist\n" % path)
+        exit(1)
+    finally:
+        os.chdir(cwd)
+
+
+@contextlib.contextmanager
+def a_thread_pool():
+    pool = Pool()
+    try:
+        yield pool
+    finally:
+        pool.close()
 
 
 # Calculates hash of the specified object x. x is a tuple with the format
@@ -103,9 +128,8 @@ def hashcalc(path, pool, method="MD5", havejpeginfo=False):
 # Writes the specified dict to disk
 def writecache(d, clean, fsigs):
     if not clean:
-        cache = open(fsigs, "wb")
-        pickle.dump(d, cache)
-        cache.close()
+        with open(fsigs, "wb") as cache:
+            pickle.dump(d, cache)
 
 
 # Deletes any temporary files
@@ -333,46 +357,44 @@ def load_hashes(fsigs):
     return jpegs, modif
 
 
-def calculate_hashes(rootDir, jpegs, modif, havejpeginfo, fsigs, clean, hash_method):
+def calculate_hashes(jpegs, modif, havejpeginfo, fsigs, clean, hash_method):
     # Create process pool for parallel hash calculation
-    pool = Pool()
-    # Allowed extensions (case insensitive)
     extensions = ("jpg", "jpeg")
-    count = 0
-    for dirName, subdirList, fileList in os.walk(rootDir):
-        sys.stderr.write("Exploring %s\n" % dirName)
-        for fname in fileList:
-            # Update signatures cache every 100 files
-            if modif and ((count % 100) == 0):
-                writecache(jpegs, clean, fsigs)
-                modif = False
-            if fname.lower().endswith(extensions):
-                filepath = os.path.join(dirName, fname)
-                # Si el fichero no está en la caché,
-                # o está pero con tamaño diferente, añadirlo
-                if (filepath not in jpegs) or (
-                    (filepath in jpegs)
-                    and (jpegs[filepath]["size"] != os.path.getsize(filepath))
-                ):
-                    sys.stderr.write("   Calculating hash of %s\n" % filepath)
-                    jpegs[filepath] = {
-                        "name": fname,
-                        "dir": dirName,
-                        "hash": hashcalc(
-                            filepath, pool, hash_method, havejpeginfo
-                        ),
-                        "size": os.path.getsize(filepath),
-                    }
-                    modif = True
-                    count += 1
-    pool.close()
+    with a_thread_pool() as pool:
+        # Allowed extensions (case insensitive)
+        count = 0
+        for dirName, subdirList, fileList in os.walk("."):
+            sys.stderr.write("Exploring %s\n" % dirName)
+            for fname in fileList:
+                # Update signatures cache every 100 files
+                if modif and ((count % 100) == 0):
+                    writecache(jpegs, clean, fsigs)
+                    modif = False
+                if fname.lower().endswith(extensions):
+                    filepath = os.path.join(dirName, fname)
+                    # Si el fichero no está en la caché,
+                    # o está pero con tamaño diferente, añadirlo
+                    if (filepath not in jpegs) or (jpegs[filepath]["size"] != os.path.getsize(filepath)):
+                        sys.stderr.write("   Calculating hash of %s\n" % filepath)
+                        jpegs[filepath] = {
+                            "name": fname,
+                            "dir": dirName,
+                            "hash": hashcalc(
+                                filepath, pool, hash_method, havejpeginfo
+                            ),
+                            "size": os.path.getsize(filepath),
+                        }
+                        modif = True
+                        count += 1
+
     return jpegs, modif, count
 
 
 def get_hashes(rootDir, havejpeginfo, hash_method, clean):
     fsigs = rootDir + JPEG_CACHE_FILE
     jpegs, modif = load_hashes(fsigs)
-    jpegs, modif, count = calculate_hashes(rootDir, jpegs, modif, havejpeginfo, fsigs, clean, hash_method)
+    with in_dir(rootDir):
+        jpegs, modif, count = calculate_hashes(jpegs, modif, havejpeginfo, fsigs, clean, hash_method)
     # Write hash cache to disk
     if modif:
         writecache(jpegs, clean, fsigs)
@@ -396,6 +418,7 @@ def remove_duplicates(args):
     # Check if jpeginfo is installed
     havejpeginfo = is_jpeginfo_installed()
 
+    # TODO should use the in_dir context manager here
     pwd = os.getcwd()
     try:
         os.chdir(args.directory)
@@ -598,16 +621,14 @@ def filter_folder(tofilter, library, delete, hash_method="MD5", clean=False):
     havejpeginfo = is_jpeginfo_installed()
     
     # calculate hashes or load from file for tofilter dir
-    # calculate hashes or load from file for library dir
-
-
     jpegs_tofilter, _ , tofilter_count = get_hashes(tofilter, havejpeginfo, hash_method, clean)  # jpegs, modif, count
+    # calculate hashes or load from file for library dir
     jpegs_library, _ , library_count = get_hashes(library, havejpeginfo, hash_method, clean)    # jpegs, modif, count
     hashes_library = [h for jpeg in jpegs_library.values() for h in jpeg['hash']]
 
     if not delete:
         sys.stderr.write("No files will be deleted, only printed instead. Run with --delelte to delete")
-    sys.stderr.write("Files to be deleted:")
+    sys.stderr.write("Files to be deleted:\n")
 
     delete_count = 0
     # for each hash in tofilter dir, if it exist in library, delete the corresponding file from tofilter dir
@@ -617,12 +638,12 @@ def filter_folder(tofilter, library, delete, hash_method="MD5", clean=False):
                 delete_count += 1
                 print(jpeg['name'])
                 if delete:
-                    os.remove(fpath)
+                    os.remove(tofilter + os.path.sep + jpeg['name'])
                 break
 
     # print summary
-    sys.stderr.write(f"nr hashes calculated- tofilter: {tofilter_count},  library: {library_count}")
-    sys.stderr.write(f"Nr files deleted {delete_count}")
+    sys.stderr.write(f"Nr hashes calculated, tofilter: {tofilter_count},  library: {library_count}\n")
+    sys.stderr.write("Nr files " + ("" if delete else "that would be ") + f"deleted {delete_count}\n")
 
 
 def main():

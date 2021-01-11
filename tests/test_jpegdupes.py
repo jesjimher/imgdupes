@@ -52,9 +52,10 @@ class TestJpegDupes(unittest.TestCase):
         with mock.patch("jpegdupes.jpegdupes.get_terminal_width", return_value=150):
             jpegdupes.remove_duplicates(args)
 
-        self.assertEquals(len(list(os.listdir(self.LIBRARY_DIR))), len(list(os.listdir(self.IMAGES_DIR)))-2, "Only 2 images should be deleted")
+        self.assertEqual(len(list(os.listdir(self.LIBRARY_DIR))), len(list(os.listdir(self.IMAGES_DIR)))-2, "Only 2 images should be deleted")
         for img in ("/donatello2.jpg", "/Raphael.jpeg"):
             self.assertFalse(os.path.isfile(self.LIBRARY_DIR + img), img)
+        self.assertTrue(os.path.isfile(self.LIBRARY_DIR + jpegdupes.JPEG_CACHE_FILE), jpegdupes.JPEG_CACHE_FILE)
 
     def test_filterfolder(self):
         """ The filterfolder function should detect that leo.jpg is not yet present in the library folder.
@@ -64,7 +65,9 @@ class TestJpegDupes(unittest.TestCase):
         library = self.LIBRARY_DIR
         jpegdupes.filter_folder(tofilter, library, delete=True)
 
-        self.assertTrue(os.path.isfile(tofilter + jpegdupes.JPEG_CACHE_FILE))
         self.assertTrue(os.path.isfile(tofilter + "/leo.jpg"))
         for img in ("/donatello2.jpg", "/Raphael2.jpeg", "/mikey.jpg"):
             self.assertFalse(os.path.isfile(tofilter + img), img)
+        self.assertTrue(os.path.isfile(library  + jpegdupes.JPEG_CACHE_FILE), "File not found {}".format(library + jpegdupes.JPEG_CACHE_FILE))
+        self.assertTrue(os.path.isfile(tofilter + jpegdupes.JPEG_CACHE_FILE), "File not found {}".format(tofilter + jpegdupes.JPEG_CACHE_FILE))
+
