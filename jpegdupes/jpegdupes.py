@@ -391,13 +391,13 @@ def calculate_hashes(jpegs, modif, havejpeginfo, fsigs, clean, hash_method):
 
 
 def get_hashes(rootDir, havejpeginfo, hash_method, clean):
-    fsigs = rootDir + JPEG_CACHE_FILE
-    jpegs, modif = load_hashes(fsigs)
     with in_dir(rootDir):
+        fsigs = "." + JPEG_CACHE_FILE
+        jpegs, modif = load_hashes(fsigs)
         jpegs, modif, count = calculate_hashes(jpegs, modif, havejpeginfo, fsigs, clean, hash_method)
     # Write hash cache to disk
-    if modif:
-        writecache(jpegs, clean, fsigs)
+        if modif:
+            writecache(jpegs, clean, fsigs)
     return jpegs, modif, count
 
 
