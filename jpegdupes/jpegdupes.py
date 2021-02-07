@@ -632,7 +632,7 @@ def filter_folder(tofilter, library, delete, hash_method="MD5", clean=False):
 
     delete_count = 0
     # for each hash in tofilter dir, if it exist in library, delete the corresponding file from tofilter dir
-    for fpath, jpeg in jpegs_tofilter.items():
+    for fpath, jpeg in sorted(jpegs_tofilter.items(), key=lambda tup:tup[1]['name']):
         for h in jpeg['hash']:
             if h in hashes_library:
                 delete_count += 1
