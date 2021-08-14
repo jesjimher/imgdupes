@@ -627,7 +627,7 @@ def filter_folder(tofilter, library, delete, hash_method="MD5", clean=False):
     hashes_library = [h for jpeg in jpegs_library.values() for h in jpeg['hash']]
 
     if not delete:
-        sys.stderr.write("No files will be deleted, only printed instead. Run with --delelte to delete")
+        sys.stderr.write("No files will be deleted, only printed instead. Run with --delete to delete")
     sys.stderr.write("Files to be deleted:\n")
 
     delete_count = 0
