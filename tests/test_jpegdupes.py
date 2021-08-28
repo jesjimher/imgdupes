@@ -16,18 +16,21 @@ class A(object):
 
 class TestJpegDupes(unittest.TestCase):
 
+    IMAGES_DIR = "tests/images"
     LIBRARY_DIR = "tests/library"
     TOFILTER_DIR = "tests/tofilter"
-    IMAGES_DIR = "tests/images"
+    LIBRARY_SUBDIR = LIBRARY_DIR + "/sub"
+    TOFILTER_SUBDIR = TOFILTER_DIR + "/subfolder"
+    
 
     @classmethod
     def setUpClass(cls):
-        os.makedirs(cls.LIBRARY_DIR)
-        os.makedirs(cls.TOFILTER_DIR)
+        os.makedirs(cls.LIBRARY_SUBDIR)
+        os.makedirs(cls.TOFILTER_SUBDIR)
         for img in [jpg for jpg in os.listdir(cls.IMAGES_DIR) if jpg != "leo.jpg"]:
-            shutil.copy2(cls.IMAGES_DIR + os.path.sep + img, cls.LIBRARY_DIR)
+            shutil.copy2(cls.IMAGES_DIR + os.path.sep + img, cls.LIBRARY_SUBDIR)
         for img in ("/donatello2.jpg", "/Raphael2.jpeg", "/leo.jpg", "/mikey.jpg"):
-            shutil.copy2(cls.IMAGES_DIR + img, cls.TOFILTER_DIR)
+            shutil.copy2(cls.IMAGES_DIR + img, cls.TOFILTER_SUBDIR)
 
     @classmethod
     def tearDownClass(cls):
@@ -52,9 +55,10 @@ class TestJpegDupes(unittest.TestCase):
         with mock.patch("jpegdupes.jpegdupes.get_terminal_width", return_value=150):
             jpegdupes.remove_duplicates(args)
 
-        self.assertEqual(len(list(os.listdir(self.LIBRARY_DIR))), len(list(os.listdir(self.IMAGES_DIR)))-2, "Only 2 images should be deleted")
+        # Out of the 6 images, 1 was not copied to the library (leo.jpg), 2 duplicates should have been deleted
+        self.assertEqual(len(list(os.listdir(self.LIBRARY_SUBDIR))), len(list(os.listdir(self.IMAGES_DIR)))-3, "Expected only 3 files in library")
         for img in ("/donatello2.jpg", "/Raphael.jpeg"):
-            self.assertFalse(os.path.isfile(self.LIBRARY_DIR + img), img)
+            self.assertFalse(os.path.isfile(self.LIBRARY_SUBDIR + img), img)
         self.assertTrue(os.path.isfile(self.LIBRARY_DIR + jpegdupes.JPEG_CACHE_FILE), jpegdupes.JPEG_CACHE_FILE)
 
     def test_filterfolder(self):
@@ -65,9 +69,9 @@ class TestJpegDupes(unittest.TestCase):
         library = self.LIBRARY_DIR
         jpegdupes.filter_folder(tofilter, library, delete=True)
 
-        self.assertTrue(os.path.isfile(tofilter + "/leo.jpg"))
+        self.assertTrue(os.path.isfile(self.TOFILTER_SUBDIR + "/leo.jpg"))
         for img in ("/donatello2.jpg", "/Raphael2.jpeg", "/mikey.jpg"):
-            self.assertFalse(os.path.isfile(tofilter + img), img)
+            self.assertFalse(os.path.isfile(self.TOFILTER_SUBDIR + img), img)
         self.assertTrue(os.path.isfile(library  + jpegdupes.JPEG_CACHE_FILE), "File not found {}".format(library + jpegdupes.JPEG_CACHE_FILE))
         self.assertTrue(os.path.isfile(tofilter + jpegdupes.JPEG_CACHE_FILE), "File not found {}".format(tofilter + jpegdupes.JPEG_CACHE_FILE))
 
