@@ -358,10 +358,9 @@ def load_hashes(fsigs):
 
 
 def calculate_hashes(jpegs, modif, havejpeginfo, fsigs, clean, hash_method):
+    extensions = ("jpg", "jpeg") # Allowed extensions (case insensitive)
     # Create process pool for parallel hash calculation
-    extensions = ("jpg", "jpeg")
     with a_thread_pool() as pool:
-        # Allowed extensions (case insensitive)
         count = 0
         for dirName, subdirList, fileList in os.walk("."):
             sys.stderr.write("Exploring %s\n" % dirName)
@@ -391,13 +390,13 @@ def calculate_hashes(jpegs, modif, havejpeginfo, fsigs, clean, hash_method):
 
 
 def get_hashes(rootDir, havejpeginfo, hash_method, clean):
-    fsigs = rootDir + JPEG_CACHE_FILE
-    jpegs, modif = load_hashes(fsigs)
     with in_dir(rootDir):
+        fsigs = "." + JPEG_CACHE_FILE
+        jpegs, modif = load_hashes(fsigs)
         jpegs, modif, count = calculate_hashes(jpegs, modif, havejpeginfo, fsigs, clean, hash_method)
     # Write hash cache to disk
-    if modif:
-        writecache(jpegs, clean, fsigs)
+        if modif:
+            writecache(jpegs, clean, fsigs)
     return jpegs, modif, count
 
 
@@ -627,18 +626,18 @@ def filter_folder(tofilter, library, delete, hash_method="MD5", clean=False):
     hashes_library = [h for jpeg in jpegs_library.values() for h in jpeg['hash']]
 
     if not delete:
-        sys.stderr.write("No files will be deleted, only printed instead. Run with --delelte to delete")
+        sys.stderr.write("No files will be deleted, only printed instead. Run with --delete to delete them\n")
     sys.stderr.write("Files to be deleted:\n")
 
     delete_count = 0
     # for each hash in tofilter dir, if it exist in library, delete the corresponding file from tofilter dir
-    for fpath, jpeg in jpegs_tofilter.items():
+    for fpath, jpeg in sorted(jpegs_tofilter.items(), key=lambda tup:tup[1]['name']):
         for h in jpeg['hash']:
             if h in hashes_library:
                 delete_count += 1
-                print(jpeg['name'])
+                print(fpath)
                 if delete:
-                    os.remove(tofilter + os.path.sep + jpeg['name'])
+                    os.remove(tofilter + os.path.sep + fpath)
                 break
 
     # print summary
