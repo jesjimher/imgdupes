@@ -57,7 +57,7 @@ In Ubuntu, the following commands should install everything:
 sudo apt-get install python3-dev libjpeg-dev gir1.2-gexiv2-0.10 jpeginfo python3-cffi libturbojpeg0-dev python3-gi
 ```
 
-For Arch Linux there are AUR packages [imgdupes](https://aur.archlinux.org/packages/imgdupes/) and [imgdupes-git](https://aur.archlinux.org/packages/imgdupes-git/).
+For Arch Linux there are AUR packages [jpegdupes](https://aur.archlinux.org/packages/jpegdupes/) and [jpegdupes-git](https://aur.archlinux.org/packages/jpegdupes-git/).
 
 ## History
 
